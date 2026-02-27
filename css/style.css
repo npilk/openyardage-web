@@ -1,0 +1,1076 @@
+/* ================================================================
+   OpenYardage — Main Stylesheet
+   ================================================================ */
+
+/* ── CSS Custom Properties ──────────────────────────────────────── */
+:root {
+  --color-primary:        #2d7a4a;
+  --color-primary-dark:   #1f5934;
+  --color-primary-light:  #4eca7f;
+  --color-accent:         #34e884;
+
+  --color-bg:             #f4f6f3;
+  --color-surface:        #ffffff;
+  --color-surface-alt:    #f8faf7;
+  --color-border:         #dde3d9;
+  --color-border-light:   #eef1ec;
+
+  --color-text:           #1a2318;
+  --color-text-muted:     #5a6e55;
+  --color-text-faint:     #8fa085;
+
+  --color-error:          #c0392b;
+  --color-error-bg:       #fdf3f2;
+
+  --header-height:        58px;
+  --footer-height:        64px;
+  --radius-sm:            6px;
+  --radius-md:            10px;
+  --radius-lg:            16px;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.14), 0 4px 10px rgba(0,0,0,0.06);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+  --transition: 180ms ease;
+}
+
+/* ── Reset & Base ────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App Header ──────────────────────────────────────────────────── */
+.app-header {
+  flex-shrink: 0;
+  height: var(--header-height);
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+  z-index: 100;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logo-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.logo-text {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #fff;
+}
+
+.header-tagline {
+  font-size: 13px;
+  color: rgba(255,255,255,0.65);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Step Navigator (header) ─────────────────────────────────────── */
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  opacity: 0.45;
+  cursor: default;
+  transition: opacity var(--transition);
+  white-space: nowrap;
+}
+
+.step-item.active {
+  opacity: 1;
+}
+
+.step-item.completed {
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.step-item.completed:hover {
+  opacity: 1;
+}
+
+.step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-item.active .step-num {
+  background: #fff;
+  color: var(--color-primary);
+  border-color: #fff;
+}
+
+.step-item.completed .step-num {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary-light);
+  color: #fff;
+}
+
+.step-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.step-divider {
+  width: 28px;
+  height: 1px;
+  background: rgba(255,255,255,0.35);
+  flex-shrink: 0;
+}
+
+/* ── App Main ────────────────────────────────────────────────────── */
+.app-main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Step Panels ─────────────────────────────────────────────────── */
+.step-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.step-panel[hidden] {
+  display: none;
+}
+
+/* ── Step Footer (shared) ────────────────────────────────────────── */
+.step-footer {
+  flex-shrink: 0;
+  height: var(--footer-height);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  gap: 16px;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background var(--transition), opacity var(--transition), transform 80ms ease;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e8f5ee;
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 9px 12px;
+}
+
+.btn-text:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-border-light);
+}
+
+.btn-arrow {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STEP 1 — MAP
+   ════════════════════════════════════════════════════════════════ */
+.step-1-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+}
+
+#map {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  z-index: 1;
+}
+
+/* ── Search Overlay ──────────────────────────────────────────────── */
+#search-overlay {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, calc(100% - 100px));
+  z-index: 500;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0 12px;
+  gap: 8px;
+  border: 1.5px solid transparent;
+  transition: border-color var(--transition);
+}
+
+.search-wrap:focus-within {
+  border-color: var(--color-primary-light);
+}
+
+.search-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--color-text);
+  padding: 11px 0;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-faint);
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color var(--transition), background var(--transition);
+  line-height: 1;
+}
+
+.search-clear:hover {
+  color: var(--color-text);
+  background: var(--color-border-light);
+}
+
+/* Search results dropdown */
+.search-results {
+  margin-top: 6px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.search-results[hidden] {
+  display: none;
+}
+
+.search-result-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-light);
+  transition: background var(--transition);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+  background: #e8f5ee;
+  outline: none;
+}
+
+.result-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-detail {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-use-bbox {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: #e8f5ee;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.search-loading {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Map Hint ─────────────────────────────────────────────────────── */
+.map-hint {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  z-index: 500;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  transition: opacity 0.5s ease;
+}
+
+.map-hint.hidden {
+  opacity: 0;
+}
+
+.hint-icon {
+  margin-right: 4px;
+}
+
+/* ── BBox Info (footer) ─────────────────────────────────────────── */
+.bbox-info {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 440px;
+}
+
+.bbox-info .bbox-coords {
+  color: var(--color-text);
+}
+
+/* Leaflet draw toolbar — keep it clean */
+.leaflet-draw-toolbar a {
+  border-radius: 4px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STEP 2 — CUSTOMIZE
+   ════════════════════════════════════════════════════════════════ */
+.step-2-layout {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+}
+
+.step-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+}
+
+.customize-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 760px) {
+  .customize-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-2-layout {
+    padding: 20px 16px;
+  }
+}
+
+.customize-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+/* ── Color Options ───────────────────────────────────────────────── */
+.color-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.color-label {
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+  flex: 1;
+}
+
+.color-swatch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.color-input {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 2px;
+  background: transparent;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 3px;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.color-hex {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  width: 62px;
+}
+
+/* ── Options ─────────────────────────────────────────────────────── */
+.option-section {
+  margin-bottom: 20px;
+}
+
+.option-section:last-child {
+  margin-bottom: 0;
+}
+
+.option-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-faint);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Toggle switch */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-border);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-primary);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+/* Radio group */
+.radio-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.radio-label {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.radio-group {
+  display: flex;
+  gap: 4px;
+  background: var(--color-bg);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.radio-opt {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.radio-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-opt span {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: background var(--transition), color var(--transition);
+  color: var(--color-text-muted);
+}
+
+.radio-opt input:checked + span {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Range slider */
+.slider-row {
+  margin-bottom: 12px;
+}
+
+.slider-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--color-text);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.range-input {
+  width: 100%;
+  accent-color: var(--color-primary);
+  height: 4px;
+  cursor: pointer;
+}
+
+.slider-hint {
+  font-size: 12px;
+  color: var(--color-text-faint);
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+/* Select */
+.select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.select-label {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.select-input {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-primary-light);
+}
+
+/* Sub-options (toggled by switch) */
+.sub-options {
+  padding: 12px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.sub-options[hidden] {
+  display: none;
+}
+
+/* Feature badge */
+.feature-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #fff3cd;
+  color: #856404;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* Course summary */
+.course-summary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.course-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.course-summary-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-text-faint);
+}
+
+.course-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.bbox-summary {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STEP 3 — GENERATE
+   ════════════════════════════════════════════════════════════════ */
+.step-3-layout {
+  flex: 1;
+  overflow-y: auto;
+  padding: 36px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+/* ── Generation Status ────────────────────────────────────────────── */
+.generation-status {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-status {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.progress-pct {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+}
+
+/* Hole status list */
+.hole-status-list {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hole-status-list[hidden] {
+  display: none;
+}
+
+.hole-status-inner {
+  padding: 4px 0;
+}
+
+.hole-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.hole-status-row:last-child {
+  border-bottom: none;
+}
+
+.hole-status-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hole-status-icon.pending   { color: var(--color-text-faint); }
+.hole-status-icon.running   { color: var(--color-primary); }
+.hole-status-icon.done      { color: #2ecc71; }
+.hole-status-icon.error     { color: var(--color-error); }
+
+.hole-status-name {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.hole-status-detail {
+  font-size: 12px;
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
+}
+
+/* ── PDF Preview ─────────────────────────────────────────────────── */
+.pdf-preview-area[hidden] {
+  display: none;
+}
+
+.pdf-preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.pdf-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.pdf-preview-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pdf-preview-frame {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-height: 400px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Error State ─────────────────────────────────────────────────── */
+.error-state[hidden] {
+  display: none;
+}
+
+.error-state {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 32px 24px;
+  background: var(--color-error-bg);
+  border: 1px solid #f5c6cb;
+  border-radius: var(--radius-lg);
+}
+
+.error-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  color: var(--color-error);
+}
+
+.error-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-error);
+  margin-bottom: 8px;
+}
+
+.error-message {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+/* ── Spinner animation (used in hole status) ─────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Leaflet overrides ───────────────────────────────────────────── */
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+
+.leaflet-draw-section .leaflet-draw-toolbar {
+  margin-top: 0;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}

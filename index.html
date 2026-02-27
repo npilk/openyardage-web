@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenYardage — Printable Golf Yardage Books</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet.draw CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════
+       APP HEADER
+  ═══════════════════════════════════════════════════ -->
+  <header class="app-header">
+    <div class="header-logo">
+      <span class="logo-icon">⛳</span>
+      <span class="logo-text">OpenYardage</span>
+    </div>
+    <nav class="step-nav" aria-label="Steps">
+      <div class="step-item active" id="step-nav-1" data-step="1">
+        <span class="step-num">1</span>
+        <span class="step-label">Select Course</span>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="step-nav-2" data-step="2">
+        <span class="step-num">2</span>
+        <span class="step-label">Customize</span>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="step-nav-3" data-step="3">
+        <span class="step-num">3</span>
+        <span class="step-label">Generate</span>
+      </div>
+    </nav>
+    <div class="header-tagline">Free yardage books from OpenStreetMap data</div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN CONTENT AREA
+  ═══════════════════════════════════════════════════ -->
+  <main class="app-main">
+
+    <!-- ─────────────────────────────────────────────────
+         STEP 1: COURSE SELECTION
+    ───────────────────────────────────────────────── -->
+    <section id="step-1" class="step-panel active" aria-labelledby="step1-heading">
+      <div class="step-1-layout">
+
+        <!-- Search overlay (floats over map) -->
+        <div id="search-overlay">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              id="search-input"
+              class="search-input"
+              placeholder="Search for a golf course…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Search for a golf course"
+            />
+            <button class="search-clear" id="search-clear" aria-label="Clear search" hidden>✕</button>
+          </div>
+          <ul id="search-results" class="search-results" role="listbox" aria-label="Search results" hidden></ul>
+        </div>
+
+        <!-- Map -->
+        <div id="map" aria-label="Course selection map"></div>
+
+        <!-- Instruction tooltip (fades out once bbox is drawn) -->
+        <div id="map-hint" class="map-hint">
+          <span class="hint-icon">↖</span>
+          Use the <strong>rectangle tool</strong> in the top-left to draw a box around your course
+        </div>
+
+      </div>
+
+      <!-- Step footer: bbox info + next button -->
+      <footer class="step-footer">
+        <div id="bbox-info" class="bbox-info">
+          <span class="bbox-label">No area selected</span>
+        </div>
+        <div class="footer-actions">
+          <button class="btn btn-primary" id="btn-to-step2" disabled>
+            Next: Customize <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────
+         STEP 2: CUSTOMIZE
+    ───────────────────────────────────────────────── -->
+    <section id="step-2" class="step-panel" aria-labelledby="step2-heading" hidden>
+      <div class="step-2-layout">
+        <h2 id="step2-heading" class="step-heading">Customize Your Yardage Book</h2>
+
+        <div class="customize-grid">
+
+          <!-- Colors panel -->
+          <div class="customize-card">
+            <h3 class="card-title">Colors</h3>
+            <div class="color-options">
+
+              <div class="color-row">
+                <label class="color-label" for="color-fairway">Fairway &amp; Tee Box</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-fairway" class="color-input" value="#34E884" />
+                  <span class="color-hex" id="hex-fairway">#34E884</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-green">Green</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-green" class="color-input" value="#5AFCA3" />
+                  <span class="color-hex" id="hex-green">#5AFCA3</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-rough">Background (Rough)</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-rough" class="color-input" value="#18BB3E" />
+                  <span class="color-hex" id="hex-rough">#18BB3E</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-water">Water</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-water" class="color-input" value="#15BCF1" />
+                  <span class="color-hex" id="hex-water">#15BCF1</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-sand">Sand / Bunkers</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-sand" class="color-input" value="#FFD435" />
+                  <span class="color-hex" id="hex-sand">#FFD435</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-trees">Trees &amp; Woods</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-trees" class="color-input" value="#178200" />
+                  <span class="color-hex" id="hex-trees">#178200</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-text">Distance Text</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-text" class="color-input" value="#000000" />
+                  <span class="color-hex" id="hex-text">#000000</span>
+                </div>
+              </div>
+
+              <div class="color-row" id="topo-color-row">
+                <label class="color-label" for="color-topo">Contour Lines</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-topo" class="color-input" value="#8B5E3C" />
+                  <span class="color-hex" id="hex-topo">#8B5E3C</span>
+                </div>
+              </div>
+
+              <button class="btn btn-text" id="btn-reset-colors">Reset to defaults</button>
+            </div>
+          </div>
+
+          <!-- Options panel -->
+          <div class="customize-card">
+            <h3 class="card-title">Options</h3>
+
+            <div class="option-section">
+              <h4 class="option-section-title">General</h4>
+
+              <div class="toggle-row">
+                <label class="toggle-label" for="opt-trees">Include individual trees</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="opt-trees" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="radio-row">
+                <span class="radio-label">Distance units</span>
+                <div class="radio-group">
+                  <label class="radio-opt">
+                    <input type="radio" name="units" id="opt-yards" value="yards" checked />
+                    <span>Yards</span>
+                  </label>
+                  <label class="radio-opt">
+                    <input type="radio" name="units" id="opt-meters" value="meters" />
+                    <span>Meters</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="slider-row">
+                <label class="slider-label" for="opt-hole-width">
+                  Hole width filter
+                  <span class="slider-value" id="hole-width-val">50 yds</span>
+                </label>
+                <input
+                  type="range"
+                  id="opt-hole-width"
+                  class="range-input"
+                  min="30" max="100" step="5" value="50"
+                />
+                <div class="slider-hint">Features more than this distance from the hole centerline are filtered out</div>
+              </div>
+            </div>
+
+            <div class="option-section">
+              <h4 class="option-section-title">Topography</h4>
+
+              <div class="toggle-row">
+                <label class="toggle-label" for="opt-topo">
+                  Include elevation contours
+                  <span class="feature-badge">US only</span>
+                </label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="opt-topo" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div id="topo-options" class="sub-options" hidden>
+                <div class="select-row">
+                  <label class="select-label" for="opt-topo-interval">Contour interval</label>
+                  <select id="opt-topo-interval" class="select-input">
+                    <option value="1">1 meter (~3 ft)</option>
+                    <option value="2" selected>2 meters (~6.5 ft)</option>
+                    <option value="3">3 meters (~10 ft)</option>
+                  </select>
+                </div>
+
+                <div class="toggle-row">
+                  <label class="toggle-label" for="opt-topo-labels">Show index contour labels</label>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="opt-topo-labels" checked />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- end customize-grid -->
+
+        <!-- Course info summary -->
+        <div class="course-summary" id="course-summary">
+          <div class="course-name-wrap">
+            <span class="course-summary-label">Course:</span>
+            <span class="course-name" id="course-name-display">—</span>
+          </div>
+          <div class="bbox-summary" id="bbox-summary">—</div>
+        </div>
+
+      </div>
+
+      <footer class="step-footer">
+        <div class="footer-actions">
+          <button class="btn btn-secondary" id="btn-back-to-step1">
+            <span class="btn-arrow">←</span> Back
+          </button>
+          <button class="btn btn-primary" id="btn-to-step3">
+            Generate Yardage Book <span class="btn-arrow">→</span>
+          </button>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────
+         STEP 3: GENERATE
+    ───────────────────────────────────────────────── -->
+    <section id="step-3" class="step-panel" aria-labelledby="step3-heading" hidden>
+      <div class="step-3-layout">
+
+        <!-- Progress area -->
+        <div class="generation-status" id="generation-status">
+          <h2 id="step3-heading" class="step-heading" id="gen-heading">Generating Your Yardage Book</h2>
+
+          <div class="progress-wrap">
+            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-labels">
+              <span class="progress-status" id="progress-status">Starting…</span>
+              <span class="progress-pct" id="progress-pct">0%</span>
+            </div>
+          </div>
+
+          <!-- Individual hole status list -->
+          <div class="hole-status-list" id="hole-status-list" hidden>
+            <div class="hole-status-inner" id="hole-status-inner"></div>
+          </div>
+        </div>
+
+        <!-- PDF preview area (shown after generation) -->
+        <div class="pdf-preview-area" id="pdf-preview-area" hidden>
+          <div class="pdf-preview-header">
+            <h3 class="pdf-preview-title" id="pdf-preview-title">Yardage Book Ready</h3>
+            <button class="btn btn-primary" id="btn-download">
+              ⬇ Download PDF
+            </button>
+          </div>
+          <iframe
+            id="pdf-preview-frame"
+            class="pdf-preview-frame"
+            title="Yardage book PDF preview"
+          ></iframe>
+        </div>
+
+        <!-- Error state -->
+        <div class="error-state" id="error-state" hidden>
+          <div class="error-icon">⚠</div>
+          <h3 class="error-title">Something went wrong</h3>
+          <p class="error-message" id="error-message"></p>
+          <button class="btn btn-secondary" id="btn-retry">Try Again</button>
+        </div>
+
+      </div>
+
+      <footer class="step-footer" id="step3-footer">
+        <div class="footer-actions">
+          <button class="btn btn-secondary" id="btn-back-to-step2">
+            <span class="btn-arrow">←</span> Back to Customize
+          </button>
+          <button class="btn btn-text" id="btn-start-over">Start Over</button>
+        </div>
+      </footer>
+    </section>
+
+  </main><!-- end app-main -->
+
+  <!-- ═══════════════════════════════════════════════════
+       SCRIPTS
+  ═══════════════════════════════════════════════════ -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.draw -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <!-- jsPDF (loaded here so it's available globally for pdf.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- d3-contour + d3-array (for elevation contours, Phase 7) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3-array@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-contour@4"></script>
+
+  <!-- App entry point (ES module) -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
