@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenYardage — Printable Golf Yardage Books</title>
+  <meta name="description" content="Generate printable golf yardage books in your browser using free OpenStreetMap data. No account required." />
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -19,7 +20,6 @@
   ═══════════════════════════════════════════════════ -->
   <header class="app-header">
     <div class="header-logo">
-      <span class="logo-icon">⛳</span>
       <span class="logo-text">OpenYardage</span>
     </div>
     <nav class="step-nav" aria-label="Steps">
@@ -30,15 +30,15 @@
       <div class="step-divider"></div>
       <div class="step-item" id="step-nav-2" data-step="2">
         <span class="step-num">2</span>
-        <span class="step-label">Customize</span>
+        <span class="step-label">Generate</span>
       </div>
       <div class="step-divider"></div>
       <div class="step-item" id="step-nav-3" data-step="3">
         <span class="step-num">3</span>
-        <span class="step-label">Generate</span>
+        <span class="step-label">Review &amp; Export</span>
       </div>
     </nav>
-    <div class="header-tagline">Free yardage books from OpenStreetMap data</div>
+    <a href="#about" class="header-about-link">About</a>
   </header>
 
   <!-- ═══════════════════════════════════════════════════
@@ -101,6 +101,23 @@
       <div class="step-2-layout">
         <h2 id="step2-heading" class="step-heading">Customize Your Yardage Book</h2>
 
+        <!-- Course info summary -->
+        <div class="course-summary" id="course-summary">
+          <div class="course-name-wrap">
+            <label class="course-summary-label" for="course-name-input">Course:</label>
+            <input
+              type="text"
+              id="course-name-input"
+              class="course-name-input"
+              placeholder="(unnamed selection)"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Course name"
+            />
+          </div>
+          <div class="bbox-summary" id="bbox-summary">—</div>
+        </div>
+
         <div class="customize-grid">
 
           <!-- Colors panel -->
@@ -109,10 +126,18 @@
             <div class="color-options">
 
               <div class="color-row">
-                <label class="color-label" for="color-fairway">Fairway &amp; Tee Box</label>
+                <label class="color-label" for="color-fairway">Fairway</label>
                 <div class="color-swatch-wrap">
                   <input type="color" id="color-fairway" class="color-input" value="#34E884" />
                   <span class="color-hex" id="hex-fairway">#34E884</span>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <label class="color-label" for="color-teebox">Tee Box</label>
+                <div class="color-swatch-wrap">
+                  <input type="color" id="color-teebox" class="color-input" value="#5AFCA3" />
+                  <span class="color-hex" id="hex-teebox">#5AFCA3</span>
                 </div>
               </div>
 
@@ -164,15 +189,14 @@
                 </div>
               </div>
 
-              <div class="color-row" id="topo-color-row">
-                <label class="color-label" for="color-topo">Contour Lines</label>
-                <div class="color-swatch-wrap">
-                  <input type="color" id="color-topo" class="color-input" value="#8B5E3C" />
-                  <span class="color-hex" id="hex-topo">#8B5E3C</span>
-                </div>
+              <div class="preset-row">
+                <label class="preset-label" for="color-preset">Preset</label>
+                <select id="color-preset" class="preset-select">
+                  <option value="default">Default</option>
+                  <option value="bw">Black &amp; White</option>
+                  <option value="custom">Custom</option>
+                </select>
               </div>
-
-              <button class="btn btn-text" id="btn-reset-colors">Reset to defaults</button>
             </div>
           </div>
 
@@ -187,6 +211,14 @@
                 <label class="toggle-label" for="opt-trees">Include individual trees</label>
                 <label class="toggle-switch">
                   <input type="checkbox" id="opt-trees" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <label class="toggle-label" for="opt-text-bg">Label background</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="opt-text-bg" checked />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
@@ -218,53 +250,19 @@
                 />
                 <div class="slider-hint">Features more than this distance from the hole centerline are filtered out</div>
               </div>
-            </div>
-
-            <div class="option-section">
-              <h4 class="option-section-title">Topography</h4>
 
               <div class="toggle-row">
-                <label class="toggle-label" for="opt-topo">
-                  Include elevation contours
-                  <span class="feature-badge">US only</span>
-                </label>
+                <label class="toggle-label" for="opt-draw-all">Draw all features (no filter)</label>
                 <label class="toggle-switch">
-                  <input type="checkbox" id="opt-topo" />
+                  <input type="checkbox" id="opt-draw-all" />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
-
-              <div id="topo-options" class="sub-options" hidden>
-                <div class="select-row">
-                  <label class="select-label" for="opt-topo-interval">Contour interval</label>
-                  <select id="opt-topo-interval" class="select-input">
-                    <option value="1">1 meter (~3 ft)</option>
-                    <option value="2" selected>2 meters (~6.5 ft)</option>
-                    <option value="3">3 meters (~10 ft)</option>
-                  </select>
-                </div>
-
-                <div class="toggle-row">
-                  <label class="toggle-label" for="opt-topo-labels">Show index contour labels</label>
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="opt-topo-labels" checked />
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
             </div>
+
           </div>
 
         </div><!-- end customize-grid -->
-
-        <!-- Course info summary -->
-        <div class="course-summary" id="course-summary">
-          <div class="course-name-wrap">
-            <span class="course-summary-label">Course:</span>
-            <span class="course-name" id="course-name-display">—</span>
-          </div>
-          <div class="bbox-summary" id="bbox-summary">—</div>
-        </div>
 
       </div>
 
@@ -283,12 +281,12 @@
     <!-- ─────────────────────────────────────────────────
          STEP 3: GENERATE
     ───────────────────────────────────────────────── -->
-    <section id="step-3" class="step-panel" aria-labelledby="step3-heading" hidden>
+    <section id="step-3" class="step-panel" aria-labelledby="gen-course-name" hidden>
       <div class="step-3-layout">
 
         <!-- Progress area -->
         <div class="generation-status" id="generation-status">
-          <h2 id="step3-heading" class="step-heading" id="gen-heading">Generating Your Yardage Book</h2>
+          <h2 class="step-heading" id="gen-course-name"></h2>
 
           <div class="progress-wrap">
             <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -299,27 +297,84 @@
               <span class="progress-pct" id="progress-pct">0%</span>
             </div>
           </div>
-
-          <!-- Individual hole status list -->
-          <div class="hole-status-list" id="hole-status-list" hidden>
-            <div class="hole-status-inner" id="hole-status-inner"></div>
-          </div>
         </div>
 
-        <!-- PDF preview area (shown after generation) -->
-        <div class="pdf-preview-area" id="pdf-preview-area" hidden>
-          <div class="pdf-preview-header">
-            <h3 class="pdf-preview-title" id="pdf-preview-title">Yardage Book Ready</h3>
-            <button class="btn btn-primary" id="btn-download">
-              ⬇ Download PDF
-            </button>
+        <!-- Hole browser (shown after generation) -->
+        <div class="hole-browser" id="hole-browser" hidden>
+
+          <!-- Header: course name + hole navigation -->
+          <div class="hole-browser-header">
+            <h2 class="hole-browser-title" id="hole-browser-title"></h2>
+            <div class="hole-browser-nav">
+              <button class="btn btn-secondary hole-nav-btn" id="btn-hole-prev" aria-label="Previous hole" disabled>← Prev</button>
+              <select id="hole-select" class="hole-select" aria-label="Select hole"></select>
+              <button class="btn btn-secondary hole-nav-btn" id="btn-hole-next" aria-label="Next hole">Next →</button>
+            </div>
+            <div class="hole-osm-name" id="hole-osm-name" hidden></div>
           </div>
-          <iframe
-            id="pdf-preview-frame"
-            class="pdf-preview-frame"
-            title="Yardage book PDF preview"
-          ></iframe>
-        </div>
+
+          <!-- Body: left = images, right = controls -->
+          <div class="hole-browser-body">
+
+            <!-- Left panel: hole canvas + green inset -->
+            <div class="hole-browser-left">
+              <div class="hole-canvas-wrap">
+                <canvas id="hole-display-canvas" class="hole-display-canvas"></canvas>
+              </div>
+              <div class="hole-green-wrap">
+                <div class="hole-green-label">Green detail</div>
+                <canvas id="green-display-canvas" class="green-display-canvas"></canvas>
+              </div>
+            </div>
+
+            <!-- Right panel: regeneration controls -->
+            <div class="hole-browser-right">
+              <div class="regen-panel">
+                <div class="regen-panel-title">
+                Edit this hole
+                <button class="btn-regen-toggle" id="btn-regen-toggle" aria-expanded="false">Edit ▾</button>
+              </div>
+                <div class="regen-body">
+                  <div class="regen-sliders">
+                    <div class="regen-field">
+                      <label class="regen-label" for="regen-hole-width">
+                        Hole width <span class="slider-value" id="regen-width-val">50 yds</span>
+                      </label>
+                      <input type="range" id="regen-hole-width" class="range-input" min="30" max="100" step="5" value="50" />
+                      <div class="slider-hint">Distance from hole centerline to include features</div>
+                    </div>
+                    <div class="regen-field">
+                      <label class="regen-label" for="regen-short-filter">
+                        Tee zone width <span class="slider-value" id="regen-filter-val">1.5×</span>
+                      </label>
+                      <input type="range" id="regen-short-filter" class="range-input" min="0.25" max="2.0" step="0.05" value="1.0" />
+                      <div class="slider-hint">Width multiplier applied at the tee end of the hole</div>
+                    </div>
+                    <div class="regen-field">
+                      <label class="regen-label regen-toggle-row">
+                        <span>Draw all features (no filter)</span>
+                        <label class="toggle-switch">
+                          <input type="checkbox" id="regen-draw-all" />
+                          <span class="toggle-slider"></span>
+                        </label>
+                      </label>
+                      <div class="slider-hint">Disables all feature filtering — useful for double fairways or links-style holes</div>
+                    </div>
+                  </div>
+                  <div class="regen-actions">
+                    <button class="btn btn-primary" id="btn-regen-hole">Regenerate Hole</button>
+                    <span class="regen-status-text" id="regen-status"></span>
+                  </div>
+                  <div class="regen-delete">
+                    <button class="btn btn-danger" id="btn-hole-delete">Delete Hole</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- end hole-browser-body -->
+
+        </div><!-- end hole-browser -->
 
         <!-- Error state -->
         <div class="error-state" id="error-state" hidden>
@@ -332,16 +387,76 @@
       </div>
 
       <footer class="step-footer" id="step3-footer">
-        <div class="footer-actions">
+        <div class="step3-nav-group">
           <button class="btn btn-secondary" id="btn-back-to-step2">
             <span class="btn-arrow">←</span> Back to Customize
           </button>
           <button class="btn btn-text" id="btn-start-over">Start Over</button>
         </div>
+        <div class="step3-download-group" id="download-actions" hidden>
+          <button class="btn btn-primary" id="btn-export">⬇ Export</button>
+        </div>
       </footer>
     </section>
 
   </main><!-- end app-main -->
+
+  <!-- ═══════════════════════════════════════════════════
+       ABOUT MODAL
+  ═══════════════════════════════════════════════════ -->
+  <div class="export-modal-overlay" id="about-modal" role="dialog" aria-modal="true" aria-labelledby="about-modal-title" hidden>
+    <div class="export-modal-card">
+      <div class="export-modal-header">
+        <h3 class="export-modal-title" id="about-modal-title">About OpenYardage</h3>
+        <button class="export-modal-close" id="btn-about-close" aria-label="Close">✕</button>
+      </div>
+      <div class="about-modal-body">
+        <p>This is a web version of <a href="https://github.com/npilk/hacker-yardage" target="_blank" rel="noopener">Hacker Yardage</a>, a Python tool that generates yardage books from open data sets. (It can also add elevation and slope information.)</p>
+        <p>All data is generously provided and maintained by the volunteers at <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>. If you value this tool, please <a href="https://supporting.openstreetmap.org/" target="_blank" rel="noopener">support them</a>. If you see missing data, you can <a href="https://www.openstreetmap.org/user/new" target="_blank" rel="noopener">sign up to contribute it yourself</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       EXPORT MODAL
+  ═══════════════════════════════════════════════════ -->
+  <div class="export-modal-overlay" id="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title" hidden>
+    <div class="export-modal-card">
+
+      <div class="export-modal-header">
+        <h3 class="export-modal-title" id="export-modal-title">Export Yardage Book</h3>
+        <button class="export-modal-close" id="btn-export-close" aria-label="Close">✕</button>
+      </div>
+
+      <div class="export-modal-body">
+
+        <div class="export-option">
+          <div class="export-option-info">
+            <div class="export-option-name">Images (ZIP)</div>
+            <div class="export-option-desc">Every hole as a PNG image, bundled in a ZIP file. Useful for custom layouts, presentations, or importing into other apps.</div>
+          </div>
+          <button class="btn btn-secondary" id="btn-download-zip">⬇ Download</button>
+        </div>
+
+        <div class="export-option">
+          <div class="export-option-info">
+            <div class="export-option-name">PDF — Digital</div>
+            <div class="export-option-desc">One hole per page, optimized for on-screen viewing. Great for sharing, or for reading on a phone on the course.</div>
+          </div>
+          <button class="btn btn-primary" id="btn-download-pdf">⬇ Download</button>
+        </div>
+
+        <div class="export-option">
+          <div class="export-option-info">
+            <div class="export-option-name">PDF — Printable</div>
+            <div class="export-option-desc">Four holes per page in a compact layout. Print double-sided on the <em>short edge</em>, cut along the center line, stack and fold to make a pocket yardage book.</div>
+          </div>
+          <button class="btn btn-primary" id="btn-download-print-pdf">⬇ Download</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════
        SCRIPTS
@@ -352,6 +467,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
   <!-- jsPDF (loaded here so it's available globally for pdf.js) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- JSZip (for downloading hole images as ZIP) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <!-- d3-contour + d3-array (for elevation contours, Phase 7) -->
   <script src="https://cdn.jsdelivr.net/npm/d3-array@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3-contour@4"></script>

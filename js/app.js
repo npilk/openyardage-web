@@ -5,8 +5,9 @@
  * Imported as a module from index.html.
  */
 
-import { initMap, getBbox, getCourseName, onBboxChange } from './map.js';
-import { generateBook } from './generator.js';
+import { initMap } from './map.js';
+import { generateBook, reRenderHole } from './generator.js';
+import { assemblePdf, assemblePrintPdf } from './pdf.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global Application State
@@ -24,7 +25,7 @@ export const AppState = {
   /** Color settings (hex strings, matching Python defaults) */
   colors: {
     fairway:  '#34E884',
-    teeBox:   '#34E884',
+    teeBox:   '#5AFCA3',
     green:    '#5AFCA3',
     rough:    '#18BB3E',
     trees:    '#178200',
@@ -36,13 +37,15 @@ export const AppState = {
 
   /** Feature/rendering options */
   options: {
-    includeTrees:   true,
-    inMeters:       false,
-    includeTopo:    false,
+    includeTrees:    true,
+    textBackground:  true,
+    inMeters:        false,
+    includeTopo:     false,
     topoInterval:   2.0,   // meters
     topoLabels:     true,
-    holeWidth:      50,    // yards from centerline
-    shortFilter:    1.5,   // multiplier for near-tee filtering
+    holeWidth:        50,    // yards from centerline
+    shortFilter:      1.0,   // multiplier for near-tee filtering
+    drawAllFeatures:  false, // skip all feature filtering
   },
 
   /** Generation state (updated by generator.js) */
@@ -52,11 +55,37 @@ export const AppState = {
     statusMessage: '',
     pdfUrl:        null,
     error:         null,
+    renderedHoles: [],     // { holeNum, par, holeCanvas, greenCanvas, holeWay }[]
+    osmData:       null,   // { allFeatures, elevationGrid, bbox }
   },
 };
 
-// Preserve default colors for reset
-const DEFAULT_COLORS = { ...AppState.colors };
+// ─────────────────────────────────────────────────────────────────────────────
+// Color Presets
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PRESETS = {
+  default: {
+    fairway: '#34E884',
+    teeBox:  '#5AFCA3',
+    green:   '#5AFCA3',
+    rough:   '#18BB3E',
+    trees:   '#178200',
+    water:   '#15BCF1',
+    sand:    '#FFD435',
+    text:    '#000000',
+  },
+  bw: {
+    fairway: '#F0F0F0',
+    teeBox:  '#F0F0F0',
+    green:   '#888888',
+    rough:   '#CCCCCC',
+    trees:   '#222222',
+    water:   '#555555',
+    sand:    '#FFFFFF',
+    text:    '#000000',
+  },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOM References
@@ -80,39 +109,36 @@ const dom = {
 
   // Step 2 — colors
   colorFairway:   document.getElementById('color-fairway'),
+  colorTeeBox:    document.getElementById('color-teebox'),
   colorGreen:     document.getElementById('color-green'),
   colorRough:     document.getElementById('color-rough'),
   colorWater:     document.getElementById('color-water'),
   colorSand:      document.getElementById('color-sand'),
   colorTrees:     document.getElementById('color-trees'),
   colorText:      document.getElementById('color-text'),
-  colorTopo:      document.getElementById('color-topo'),
-
   hexFairway:     document.getElementById('hex-fairway'),
+  hexTeeBox:      document.getElementById('hex-teebox'),
   hexGreen:       document.getElementById('hex-green'),
   hexRough:       document.getElementById('hex-rough'),
   hexWater:       document.getElementById('hex-water'),
   hexSand:        document.getElementById('hex-sand'),
   hexTrees:       document.getElementById('hex-trees'),
   hexText:        document.getElementById('hex-text'),
-  hexTopo:        document.getElementById('hex-topo'),
 
-  btnResetColors: document.getElementById('btn-reset-colors'),
+  colorPreset:    document.getElementById('color-preset'),
 
   // Step 2 — options
   optTrees:         document.getElementById('opt-trees'),
+  optTextBg:        document.getElementById('opt-text-bg'),
   optYards:         document.getElementById('opt-yards'),
   optMeters:        document.getElementById('opt-meters'),
   optHoleWidth:     document.getElementById('opt-hole-width'),
   holeWidthVal:     document.getElementById('hole-width-val'),
-  optTopo:          document.getElementById('opt-topo'),
-  topoOptions:      document.getElementById('topo-options'),
-  optTopoInterval:  document.getElementById('opt-topo-interval'),
-  optTopoLabels:    document.getElementById('opt-topo-labels'),
+  optDrawAll:       document.getElementById('opt-draw-all'),
 
-  // Step 2 — summary
-  courseNameDisplay: document.getElementById('course-name-display'),
-  bboxSummary:       document.getElementById('bbox-summary'),
+  // Step 2 — summary / course name
+  courseNameInput: document.getElementById('course-name-input'),
+  bboxSummary:     document.getElementById('bbox-summary'),
 
   // Step 2 navigation
   btnBackToStep1: document.getElementById('btn-back-to-step1'),
@@ -122,13 +148,44 @@ const dom = {
   progressFill:    document.getElementById('progress-fill'),
   progressStatus:  document.getElementById('progress-status'),
   progressPct:     document.getElementById('progress-pct'),
-  holeStatusList:  document.getElementById('hole-status-list'),
-  holeStatusInner: document.getElementById('hole-status-inner'),
+  genCourseName:   document.getElementById('gen-course-name'),
 
-  pdfPreviewArea:  document.getElementById('pdf-preview-area'),
-  pdfPreviewFrame: document.getElementById('pdf-preview-frame'),
-  pdfPreviewTitle: document.getElementById('pdf-preview-title'),
-  btnDownload:     document.getElementById('btn-download'),
+  // Step 3 generation status
+  generationStatus: document.getElementById('generation-status'),
+
+  // Step 3 download / export
+  downloadActions:     document.getElementById('download-actions'),
+  btnExport:           document.getElementById('btn-export'),
+  exportModal:         document.getElementById('export-modal'),
+  btnExportClose:      document.getElementById('btn-export-close'),
+  aboutModal:          document.getElementById('about-modal'),
+  btnAbout:            document.querySelector('.header-about-link'),
+  btnAboutClose:       document.getElementById('btn-about-close'),
+  btnDownloadPdf:      document.getElementById('btn-download-pdf'),
+  btnDownloadPrintPdf: document.getElementById('btn-download-print-pdf'),
+  btnDownloadZip:      document.getElementById('btn-download-zip'),
+
+  // Hole browser
+  holeBrowser:       document.getElementById('hole-browser'),
+  holeBrowserTitle:  document.getElementById('hole-browser-title'),
+  holeSelect:        document.getElementById('hole-select'),
+  btnHolePrev:       document.getElementById('btn-hole-prev'),
+  btnHoleNext:       document.getElementById('btn-hole-next'),
+  btnHoleDelete:     document.getElementById('btn-hole-delete'),
+  holeDisplayCanvas: document.getElementById('hole-display-canvas'),
+  greenDisplayCanvas:document.getElementById('green-display-canvas'),
+
+  // Per-hole regen controls
+  regenHoleWidth:  document.getElementById('regen-hole-width'),
+  regenWidthVal:   document.getElementById('regen-width-val'),
+  regenShortFilter:document.getElementById('regen-short-filter'),
+  regenFilterVal:  document.getElementById('regen-filter-val'),
+  regenDrawAll:    document.getElementById('regen-draw-all'),
+  btnRegenHole:    document.getElementById('btn-regen-hole'),
+  regenStatus:     document.getElementById('regen-status'),
+  btnRegenToggle:  document.getElementById('btn-regen-toggle'),
+  holeBrowserRight:document.querySelector('.hole-browser-right'),
+  holeOsmName:     document.getElementById('hole-osm-name'),
 
   errorState:    document.getElementById('error-state'),
   errorMessage:  document.getElementById('error-message'),
@@ -176,6 +233,11 @@ function showStep(n) {
 function handleBboxChange(bbox, courseName) {
   AppState.bbox = bbox;
   AppState.courseName = courseName || '';
+  AppState.generation.osmData = null; // bbox changed — cached OSM data is stale
+
+  // A new selection from the map clears any prior user edit so the
+  // Nominatim-sourced name is shown in Step 2 (user can still override it).
+  delete dom.courseNameInput.dataset.userEdited;
 
   if (bbox) {
     // Hide the hint once they've drawn a box
@@ -204,37 +266,53 @@ function handleBboxChange(bbox, courseName) {
 
 /** Map color input IDs to AppState.colors keys */
 const COLOR_MAP = [
-  { input: dom.colorFairway, hex: dom.hexFairway, key: 'fairway'  },
-  { input: dom.colorGreen,   hex: dom.hexGreen,   key: 'green'    },
-  { input: dom.colorRough,   hex: dom.hexRough,   key: 'rough'    },
-  { input: dom.colorWater,   hex: dom.hexWater,   key: 'water'    },
-  { input: dom.colorSand,    hex: dom.hexSand,    key: 'sand'     },
-  { input: dom.colorTrees,   hex: dom.hexTrees,   key: 'trees'    },
-  { input: dom.colorText,    hex: dom.hexText,    key: 'text'     },
-  { input: dom.colorTopo,    hex: dom.hexTopo,    key: 'topo'     },
+  { input: dom.colorFairway, hex: dom.hexFairway, key: 'fairway' },
+  { input: dom.colorTeeBox,  hex: dom.hexTeeBox,  key: 'teeBox'  },
+  { input: dom.colorGreen,   hex: dom.hexGreen,   key: 'green'   },
+  { input: dom.colorRough,   hex: dom.hexRough,   key: 'rough'   },
+  { input: dom.colorWater,   hex: dom.hexWater,   key: 'water'   },
+  { input: dom.colorSand,    hex: dom.hexSand,    key: 'sand'    },
+  { input: dom.colorTrees,   hex: dom.hexTrees,   key: 'trees'   },
+  { input: dom.colorText,    hex: dom.hexText,    key: 'text'    },
 ];
+
+function detectPreset() {
+  for (const [name, preset] of Object.entries(PRESETS)) {
+    if (COLOR_MAP.every(({ key }) =>
+      AppState.colors[key].toUpperCase() === preset[key].toUpperCase()
+    )) return name;
+  }
+  return 'custom';
+}
+
+function applyPreset(name) {
+  const preset = PRESETS[name];
+  if (!preset) return;
+  for (const { input, hex, key } of COLOR_MAP) {
+    AppState.colors[key] = preset[key];
+    input.value = preset[key];
+    hex.textContent = preset[key].toUpperCase();
+  }
+  dom.colorPreset.value = name;
+}
 
 function bindColorInputs() {
   for (const { input, hex, key } of COLOR_MAP) {
     input.addEventListener('input', () => {
       AppState.colors[key] = input.value.toUpperCase();
       hex.textContent = input.value.toUpperCase();
+      dom.colorPreset.value = detectPreset();
     });
-  }
-}
-
-function resetColors() {
-  for (const { input, hex, key } of COLOR_MAP) {
-    const defaultVal = DEFAULT_COLORS[key];
-    AppState.colors[key] = defaultVal;
-    input.value = defaultVal;
-    hex.textContent = defaultVal.toUpperCase();
   }
 }
 
 function bindOptionInputs() {
   dom.optTrees.addEventListener('change', () => {
     AppState.options.includeTrees = dom.optTrees.checked;
+  });
+
+  dom.optTextBg.addEventListener('change', () => {
+    AppState.options.textBackground = dom.optTextBg.checked;
   });
 
   dom.optYards.addEventListener('change', () => {
@@ -250,27 +328,32 @@ function bindOptionInputs() {
     dom.holeWidthVal.textContent = `${val} yds`;
   });
 
-  dom.optTopo.addEventListener('change', () => {
-    AppState.options.includeTopo = dom.optTopo.checked;
-    if (dom.optTopo.checked) {
-      dom.topoOptions.removeAttribute('hidden');
-    } else {
-      dom.topoOptions.setAttribute('hidden', '');
-    }
+  dom.optDrawAll.addEventListener('change', () => {
+    AppState.options.drawAllFeatures = dom.optDrawAll.checked;
   });
 
-  dom.optTopoInterval.addEventListener('change', () => {
-    AppState.options.topoInterval = parseFloat(dom.optTopoInterval.value);
+  // Course name (editable in step 2 summary)
+  dom.courseNameInput.addEventListener('input', () => {
+    AppState.courseName = dom.courseNameInput.value;
+    dom.courseNameInput.dataset.userEdited = '1';
   });
 
-  dom.optTopoLabels.addEventListener('change', () => {
-    AppState.options.topoLabels = dom.optTopoLabels.checked;
+  // Regen sliders — live value display
+  dom.regenHoleWidth.addEventListener('input', () => {
+    dom.regenWidthVal.textContent = `${dom.regenHoleWidth.value} yds`;
+  });
+  dom.regenShortFilter.addEventListener('input', () => {
+    dom.regenFilterVal.textContent = `${parseFloat(dom.regenShortFilter.value).toFixed(1)}×`;
   });
 }
 
 /** Populate the course summary shown at bottom of Step 2 */
 function populateStep2Summary() {
-  dom.courseNameDisplay.textContent = AppState.courseName || '(unnamed selection)';
+  // Only set the input value if it's empty or was auto-filled from Nominatim
+  // (don't overwrite what the user may have typed manually)
+  if (!dom.courseNameInput.dataset.userEdited) {
+    dom.courseNameInput.value = AppState.courseName || '';
+  }
 
   if (AppState.bbox) {
     const b = AppState.bbox;
@@ -284,28 +367,34 @@ function populateStep2Summary() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function startGeneration() {
+  // Preserve any previously fetched OSM data so we can skip re-fetching if the
+  // bbox hasn't changed (e.g. user went back to tweak colors and regenerated).
+  const cachedOsmData = AppState.generation.osmData;
+
   // Reset step 3 UI
-  dom.pdfPreviewArea.setAttribute('hidden', '');
+  dom.holeBrowser.setAttribute('hidden', '');
+  dom.downloadActions.setAttribute('hidden', '');
+  dom.generationStatus.removeAttribute('hidden');
   dom.errorState.setAttribute('hidden', '');
-  dom.holeStatusList.setAttribute('hidden', '');
-  dom.holeStatusInner.innerHTML = '';
+  dom.genCourseName.textContent = AppState.courseName || 'Yardage Book';
   setProgress(0, 'Starting…');
 
   AppState.generation.isRunning = true;
   AppState.generation.error = null;
   AppState.generation.pdfUrl = null;
+  AppState.generation.renderedHoles = [];
+  AppState.generation.osmData = null;
 
-  // generateBook() is implemented in generator.js (Phase 6).
-  // It calls back via the progress/error/done hooks below.
   generateBook({
-    bbox:       AppState.bbox,
-    courseName: AppState.courseName,
-    colors:     AppState.colors,
-    options:    AppState.options,
-    onProgress: handleProgress,
+    bbox:         AppState.bbox,
+    courseName:   AppState.courseName,
+    colors:       AppState.colors,
+    options:      AppState.options,
+    cachedOsmData,
+    onProgress:   handleProgress,
     onHoleStatus: handleHoleStatus,
-    onDone:     handleGenerationDone,
-    onError:    handleGenerationError,
+    onDone:       handleGenerationDone,
+    onError:      handleGenerationError,
   });
 }
 
@@ -314,63 +403,20 @@ export function handleProgress({ pct, message }) {
   setProgress(pct, message);
 }
 
-/** Called by generator.js when a hole starts/finishes */
-export function handleHoleStatus({ holeNum, par, status, detail }) {
-  dom.holeStatusList.removeAttribute('hidden');
+/** Called by generator.js when a hole starts/finishes — no-op (log removed) */
+export function handleHoleStatus(_event) {}
 
-  // Find or create row
-  let row = document.getElementById(`hole-row-${holeNum}`);
-  if (!row) {
-    row = document.createElement('div');
-    row.className = 'hole-status-row';
-    row.id = `hole-row-${holeNum}`;
-    row.innerHTML = `
-      <span class="hole-status-icon pending" id="hole-icon-${holeNum}">○</span>
-      <span class="hole-status-name">Hole ${holeNum}${par ? ` (Par ${par})` : ''}</span>
-      <span class="hole-status-detail" id="hole-detail-${holeNum}"></span>
-    `;
-    dom.holeStatusInner.appendChild(row);
-  }
-
-  const icon = document.getElementById(`hole-icon-${holeNum}`);
-  const detailEl = document.getElementById(`hole-detail-${holeNum}`);
-
-  const iconMap = {
-    pending:  { cls: 'pending', html: '○' },
-    running:  { cls: 'running', html: '<span class="spinner"></span>' },
-    done:     { cls: 'done',    html: '✓' },
-    error:    { cls: 'error',   html: '✕' },
-  };
-
-  const info = iconMap[status] || iconMap.pending;
-  icon.className = `hole-status-icon ${info.cls}`;
-  icon.innerHTML = info.html;
-  if (detail) detailEl.textContent = detail;
-
-  // Auto-scroll to latest
-  row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-/** Called by generator.js when PDF is ready */
-export function handleGenerationDone({ pdfUrl, holeCount }) {
+/** Called by generator.js when all holes are rendered */
+export function handleGenerationDone({ holeCount, renderedHoles, osmData }) {
   AppState.generation.isRunning = false;
-  AppState.generation.pdfUrl = pdfUrl;
+  AppState.generation.renderedHoles = renderedHoles;
+  AppState.generation.osmData = osmData;
 
-  setProgress(100, `Done! ${holeCount} hole${holeCount !== 1 ? 's' : ''} generated.`);
+  // Collapse the progress / status section once the browser is ready
+  dom.generationStatus.setAttribute('hidden', '');
 
-  // Show PDF preview
-  dom.pdfPreviewFrame.src = pdfUrl;
-  dom.pdfPreviewTitle.textContent =
-    `${AppState.courseName || 'Yardage Book'} — ${holeCount} Holes`;
-  dom.pdfPreviewArea.removeAttribute('hidden');
-
-  // Wire download button
-  dom.btnDownload.onclick = () => {
-    const a = document.createElement('a');
-    a.href = pdfUrl;
-    a.download = `${(AppState.courseName || 'yardage-book').replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`;
-    a.click();
-  };
+  showHoleBrowser();
+  dom.downloadActions.removeAttribute('hidden');
 }
 
 /** Called by generator.js on unrecoverable error */
@@ -378,7 +424,7 @@ export function handleGenerationError({ message }) {
   AppState.generation.isRunning = false;
   AppState.generation.error = message;
 
-  dom.errorMessage.textContent = message;
+  dom.errorMessage.innerHTML = message;
   dom.errorState.removeAttribute('hidden');
 }
 
@@ -390,6 +436,245 @@ function setProgress(pct, message) {
   dom.progressFill.closest('[role=progressbar]').setAttribute('aria-valuenow', pct);
   dom.progressStatus.textContent = message;
   dom.progressPct.textContent = `${Math.round(pct)}%`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hole Browser
+// ─────────────────────────────────────────────────────────────────────────────
+
+let currentHoleIndex = 0;
+
+function showHoleBrowser() {
+  const holes = AppState.generation.renderedHoles;
+
+  // Set course name title
+  dom.holeBrowserTitle.textContent = AppState.courseName || 'Yardage Book';
+
+  // Populate hole selector dropdown
+  dom.holeSelect.innerHTML = holes.map((h, i) =>
+    `<option value="${i}">Hole ${h.holeNum}${h.par ? ` — Par ${h.par}` : ''}</option>`
+  ).join('');
+
+  // Sync regen controls to current global options
+  dom.regenHoleWidth.value  = AppState.options.holeWidth;
+  dom.regenWidthVal.textContent = `${AppState.options.holeWidth} yds`;
+  dom.regenShortFilter.value = AppState.options.shortFilter;
+  dom.regenFilterVal.textContent = `${AppState.options.shortFilter.toFixed(1)}×`;
+  dom.regenDrawAll.checked = AppState.options.drawAllFeatures;
+
+  dom.holeBrowser.removeAttribute('hidden');
+  displayHole(0);
+}
+
+function displayHole(index) {
+  const holes = AppState.generation.renderedHoles;
+  currentHoleIndex = index;
+  dom.holeSelect.value = String(index);
+
+  // Draw hole canvas
+  drawToDisplayCanvas(holes[index].holeCanvas,  dom.holeDisplayCanvas);
+  drawToDisplayCanvas(holes[index].greenCanvas, dom.greenDisplayCanvas);
+
+  // Show OSM hole name if present (e.g. "Pacific Dunes 1", "Amen Corner")
+  const osmName = holes[index].holeWay?.tags?.name;
+  if (osmName) {
+    dom.holeOsmName.textContent = osmName;
+    dom.holeOsmName.removeAttribute('hidden');
+  } else {
+    dom.holeOsmName.setAttribute('hidden', '');
+  }
+
+  // Update nav
+  dom.btnHolePrev.disabled = index === 0;
+  dom.btnHoleNext.disabled = index === holes.length - 1;
+}
+
+function deleteCurrentHole() {
+  const holes = AppState.generation.renderedHoles;
+  if (holes.length <= 1) {
+    alert('Cannot delete the last hole.');
+    return;
+  }
+  holes.splice(currentHoleIndex, 1);
+
+  // Rebuild dropdown
+  dom.holeSelect.innerHTML = holes.map((h, i) =>
+    `<option value="${i}">Hole ${h.holeNum}${h.par ? ` — Par ${h.par}` : ''}</option>`
+  ).join('');
+
+  // Stay at same index, or back up if we just deleted the last item
+  const newIndex = Math.min(currentHoleIndex, holes.length - 1);
+  displayHole(newIndex);
+}
+
+function drawToDisplayCanvas(src, dest) {
+  dest.width  = src.width;
+  dest.height = src.height;
+  dest.getContext('2d').drawImage(src, 0, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+function openExportModal() {
+  dom.exportModal.removeAttribute('hidden');
+}
+
+function closeExportModal() {
+  dom.exportModal.setAttribute('hidden', '');
+}
+
+function openAboutModal() {
+  dom.aboutModal.removeAttribute('hidden');
+}
+
+function closeAboutModal() {
+  dom.aboutModal.setAttribute('hidden', '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Download helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png')
+  );
+}
+
+function safeFilename(base) {
+  return (base || 'yardage-book').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+}
+
+async function generateAndDownloadPdf() {
+  const btn = dom.btnDownloadPdf;
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⌛ Building PDF…';
+
+  try {
+    const pdfUrl = await assemblePdf({
+      holes:      AppState.generation.renderedHoles,
+      courseName: AppState.courseName,
+      colors:     AppState.colors,
+    });
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = `${safeFilename(AppState.courseName)}.pdf`;
+    a.click();
+  } catch (err) {
+    console.error('PDF generation failed:', err);
+    alert('PDF generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+async function generateAndDownloadPrintPdf() {
+  const btn = dom.btnDownloadPrintPdf;
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⌛ Building PDF…';
+
+  try {
+    const pdfUrl = await assemblePrintPdf({
+      holes:      AppState.generation.renderedHoles,
+      courseName: AppState.courseName,
+      colors:     AppState.colors,
+    });
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = `${safeFilename(AppState.courseName)}-print.pdf`;
+    a.click();
+  } catch (err) {
+    console.error('Print PDF generation failed:', err);
+    alert('Print PDF generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+async function downloadZip() {
+  const btn = dom.btnDownloadZip;
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⌛ Preparing ZIP…';
+
+  try {
+    const zip = new window.JSZip();
+    const folder = zip.folder('yardage-book');
+
+    for (const hole of AppState.generation.renderedHoles) {
+      const num = String(hole.holeNum).padStart(2, '0');
+      folder.file(`hole-${num}.png`,       await canvasToBlob(hole.holeCanvas));
+      folder.file(`hole-${num}-green.png`, await canvasToBlob(hole.greenCanvas));
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeFilename(AppState.courseName)}-images.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    console.error('ZIP generation failed:', err);
+    alert('ZIP generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-Hole Regeneration
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function regenCurrentHole() {
+  const index   = currentHoleIndex;
+  const osmData = AppState.generation.osmData;
+  const hole    = AppState.generation.renderedHoles[index];
+
+  const overrideOptions = {
+    ...AppState.options,
+    holeWidth:        parseInt(dom.regenHoleWidth.value, 10),
+    shortFilter:      parseFloat(dom.regenShortFilter.value),
+    drawAllFeatures:  dom.regenDrawAll.checked,
+  };
+
+  dom.btnRegenHole.disabled = true;
+  dom.regenStatus.textContent = 'Rendering…';
+
+  try {
+    const result = await reRenderHole({
+      holeWay:       hole.holeWay,
+      allFeatures:   osmData.allFeatures,
+      elevationGrid: osmData.elevationGrid,
+      bbox:          osmData.bbox,
+      colors:        AppState.colors,
+      options:       overrideOptions,
+    });
+
+    // Update stored canvases for this hole
+    AppState.generation.renderedHoles[index] = {
+      ...hole,
+      holeCanvas:  result.holeCanvas,
+      greenCanvas: result.greenCanvas,
+    };
+
+    displayHole(index);
+
+    dom.regenStatus.textContent = 'Done!';
+    setTimeout(() => { dom.regenStatus.textContent = ''; }, 2500);
+  } catch (err) {
+    console.error('Regen failed:', err);
+    dom.regenStatus.textContent = `Error: ${err.message}`;
+  } finally {
+    dom.btnRegenHole.disabled = false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -420,7 +705,51 @@ function bindNavButtons() {
     showStep(1);
   });
 
-  dom.btnResetColors.addEventListener('click', resetColors);
+  dom.colorPreset.addEventListener('change', () => {
+    if (dom.colorPreset.value !== 'custom') applyPreset(dom.colorPreset.value);
+  });
+
+  // Hole browser navigation
+  dom.btnHolePrev.addEventListener('click', () => {
+    if (currentHoleIndex > 0) displayHole(currentHoleIndex - 1);
+  });
+  dom.btnHoleNext.addEventListener('click', () => {
+    const max = AppState.generation.renderedHoles.length - 1;
+    if (currentHoleIndex < max) displayHole(currentHoleIndex + 1);
+  });
+  dom.holeSelect.addEventListener('change', () => {
+    displayHole(parseInt(dom.holeSelect.value, 10));
+  });
+  dom.btnHoleDelete.addEventListener('click', deleteCurrentHole);
+
+  // Per-hole regen
+  dom.btnRegenHole.addEventListener('click', regenCurrentHole);
+
+  // Regen panel toggle (mobile only — button is hidden on wider screens via CSS)
+  dom.btnRegenToggle.addEventListener('click', () => {
+    const isOpen = dom.holeBrowserRight.classList.toggle('regen-open');
+    dom.btnRegenToggle.textContent = isOpen ? 'Close ▴' : 'Edit ▾';
+    dom.btnRegenToggle.setAttribute('aria-expanded', isOpen);
+  });
+
+  // About modal
+  dom.btnAbout.addEventListener('click', e => { e.preventDefault(); openAboutModal(); });
+  dom.btnAboutClose.addEventListener('click', closeAboutModal);
+  dom.aboutModal.addEventListener('click', e => {
+    if (e.target === dom.aboutModal) closeAboutModal();
+  });
+
+  // Export modal
+  dom.btnExport.addEventListener('click', openExportModal);
+  dom.btnExportClose.addEventListener('click', closeExportModal);
+  dom.exportModal.addEventListener('click', e => {
+    if (e.target === dom.exportModal) closeExportModal();
+  });
+
+  // Download buttons (inside modal — close modal after triggering download)
+  dom.btnDownloadPdf.addEventListener('click', () => { closeExportModal(); generateAndDownloadPdf(); });
+  dom.btnDownloadPrintPdf.addEventListener('click', () => { closeExportModal(); generateAndDownloadPrintPdf(); });
+  dom.btnDownloadZip.addEventListener('click', () => { closeExportModal(); downloadZip(); });
 
   // Clicking a completed step in the header nav can go back
   dom.stepNav1.addEventListener('click', () => {

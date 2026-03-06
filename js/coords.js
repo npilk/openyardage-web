@@ -12,59 +12,25 @@
  *   distToLine            → distToLine()
  *   getLatDegreeDistance  → getLatYardsPerDegree()
  *   getLonDegreeDistance  → getLonYardsPerDegree()
- *   getHoleMinMax         → getHoleBbox()
  *
  * Coordinate convention (preserved from Python):
- *   - Image array: rows = longitude-based, cols = latitude-based
- *   - After wayToPixels swap: arrays are in (col, row) = (lat-based, lon-based)
- *   - This matches canvas 2D convention: point = [x, y] = [col, row]
- *
- * TODO (Phase 3): Implement all functions below.
+ *   - After wayToPixels: point = [x, y] where
+ *     x = (lat - latmin)/(latmax - latmin) * width   (latitude-based, horizontal)
+ *     y = (lon - lonmin)/(lonmax - lonmin) * height  (longitude-based, vertical)
+ *   - This matches the Python "swap" that converts (lon-col, lat-row) → (lat-x, lon-y)
+ *   - Canvas 2D convention: x = column (horizontal), y = row (vertical) ✓
  */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Earth distance constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-const EARTH_RADIUS_KM = 6371.0;
-const KM_TO_YARDS = 1093.613;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Geo → Pixel Transforms
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Convert an array of {lat, lon} nodes to pixel coordinates.
- * Equivalent to Python: translateWaytoNP(way, hole_minlat, ...)
+ * Convert an array of {lat, lon} nodes to [x, y] pixel coordinates.
+ * Equivalent to Python: translateWaytoNP / translateNodestoNP
  *
- * Returns Float32Array of interleaved [x0,y0, x1,y1, ...] pairs,
- * or a convenience array of [x, y] pairs depending on usage.
- *
- * Coordinate swap: after normalization, x = col = latitude-based,
- *   y = row = longitude-based. This matches canvas drawPath() convention.
- *
- * @param {Array<{lat, lon}>} nodes
- * @param {{ latmin, lonmin, latmax, lonmax }} bbox  — hole bounding box
- * @param {number} width   — canvas width in pixels
- * @param {number} height  — canvas height in pixels
- * @returns {Array<[number, number]>}  array of [x, y] pixel pairs
- */
-export function wayToPixels(nodes, bbox, width, height) {
-  // TODO (Phase 3): Implement
-  // Python equivalent:
-  //   yfactor = ((lat - hole_minlat) / (hole_maxlat - hole_minlat)) * y_dim
-  //   xfactor = ((lon - hole_minlon) / (hole_maxlon - hole_minlon)) * x_dim
-  //   nds = [[xfactor, yfactor], ...]
-  //   nds[:,[0,1]] = nds[:,[1,0]]   ← the key swap
-  //
-  // Note: In the Python code, x_dim = height (lon-based rows),
-  //   y_dim = width (lat-based cols). Then the swap gives (col, row) = (x, y).
-  throw new Error('wayToPixels not yet implemented (Phase 3)');
-}
-
-/**
- * Convert individual tree nodes {lat, lon} to pixel [x, y] pairs.
- * Equivalent to Python: translateNodestoNP(nodes, ...)
+ * x = lat-normalized * width   (horizontal axis = latitude)
+ * y = lon-normalized * height  (vertical axis   = longitude)
  *
  * @param {Array<{lat, lon}>} nodes
  * @param {{ latmin, lonmin, latmax, lonmax }} bbox
@@ -72,9 +38,20 @@ export function wayToPixels(nodes, bbox, width, height) {
  * @param {number} height
  * @returns {Array<[number, number]>}
  */
+export function wayToPixels(nodes, bbox, width, height) {
+  const latRange = bbox.latmax - bbox.latmin;
+  const lonRange = bbox.lonmax - bbox.lonmin;
+  return nodes.map(({ lat, lon }) => [
+    ((lat - bbox.latmin) / latRange) * width,
+    ((lon - bbox.lonmin) / lonRange) * height,
+  ]);
+}
+
+/**
+ * Alias for wayToPixels — used for single-point node lists (e.g. individual trees).
+ */
 export function nodesToPixels(nodes, bbox, width, height) {
-  // TODO (Phase 3): Same as wayToPixels but for single-point nodes
-  throw new Error('nodesToPixels not yet implemented (Phase 3)');
+  return wayToPixels(nodes, bbox, width, height);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,44 +62,79 @@ export function nodesToPixels(nodes, bbox, width, height) {
  * Calculate the rotation angle (degrees) to orient a hole bottom-to-top.
  * Equivalent to Python: getRotateAngle(hole_way_nodes)
  *
- * Uses inverse cosine of vertical component of the tee→green vector.
- * Adjusts quadrant based on relative position of green vs tee.
+ * Uses the tee (first node) and green center (last node).
+ * The angle computed places the green at the top of the image.
  *
  * @param {Array<[number, number]>} holePixels  — pixel coords of hole centerline
  * @returns {number}  rotation angle in degrees
  */
 export function getRotateAngle(holePixels) {
-  // TODO (Phase 3): Implement
-  // Python:
-  //   tee = hole_way_nodes[0], green = hole_way_nodes[-1]
-  //   dx = green_x - tee_x, dy = green_y - tee_y
-  //   dist = sqrt(dx² + dy²)
-  //   theta = degrees(acos(dy / dist))
-  //   Adjust for quadrant:
-  //     green right, below tee  → 180 - theta
-  //     green left,  below tee  → 180 + theta
-  //     green left,  above tee  → 360 - theta
-  //     green right, above tee  → theta
-  throw new Error('getRotateAngle not yet implemented (Phase 3)');
+  return _computeAngle(holePixels[0], holePixels[holePixels.length - 1]);
+}
+
+/**
+ * Calculate the approach-angle rotation for the green inset view.
+ * Equivalent to Python: getMidpointAngle(hole_way_nodes)
+ *
+ * Uses the second-to-last and last nodes (approach direction to green).
+ *
+ * @param {Array<[number, number]>} holePixels
+ * @returns {number}  rotation angle in degrees
+ */
+export function getMidpointAngle(holePixels) {
+  return _computeAngle(
+    holePixels[holePixels.length - 2],
+    holePixels[holePixels.length - 1],
+  );
+}
+
+/**
+ * Shared angle computation used by getRotateAngle and getMidpointAngle.
+ * Python: getAngle / getRotateAngle logic.
+ *
+ * Computes the angle needed to rotate the image so that `to` is above `from`.
+ *
+ * @param {[number, number]} from  — [x, y] origin point (tee)
+ * @param {[number, number]} to    — [x, y] destination point (green)
+ * @returns {number}  degrees
+ */
+function _computeAngle([x2, y2], [x, y]) {
+  // from = tee = [x2, y2], to = green = [x, y]
+  const bigy   = Math.max(y, y2);
+  const smally = Math.min(y, y2);
+
+  const numerator   = bigy - smally;
+  const denominator = Math.sqrt((x2 - x) ** 2 + (bigy - smally) ** 2);
+
+  if (denominator === 0) return 0;
+
+  let angle = (Math.acos(numerator / denominator) * 180) / Math.PI;
+
+  // Quadrant adjustments — matches Python exactly
+  if      (y > y2 && x > x2) angle = 180 - angle;   // green lower-right of tee
+  else if (y > y2 && x < x2) angle = 180 + angle;   // green lower-left of tee
+  else if (y < y2 && x < x2) angle = 360 - angle;   // green upper-left of tee
+  // else: green upper-right — base case, angle unchanged
+
+  return angle;
 }
 
 /**
  * Rotate a set of [x, y] pixel points around a center point.
- * Equivalent to Python: rotateArray(image, array, angle) using Rotate2D()
+ * Equivalent to Python: Rotate2D / rotateArray
  *
- * Uses standard 2D rotation matrix:
- *   x' = (x - cx) * cos(θ) - (y - cy) * sin(θ) + cx
- *   y' = (x - cx) * sin(θ) + (y - cy) * cos(θ) + cy
+ * Python uses -angle (clockwise in screen coords). Canvas y-axis points down,
+ * so clockwise rotation uses positive sin in the standard matrix — we negate
+ * the angle to match Python's convention.
  *
  * @param {Array<[number, number]>} points
- * @param {number} cx   — center x (usually image_width / 2)
- * @param {number} cy   — center y (usually image_height / 2)
+ * @param {number} cx
+ * @param {number} cy
  * @param {number} angleDeg
  * @returns {Array<[number, number]>}
  */
 export function rotatePoints(points, cx, cy, angleDeg) {
-  // TODO (Phase 3): Implement
-  const rad = (angleDeg * Math.PI) / 180;
+  const rad = (-angleDeg * Math.PI) / 180;  // negate to match Python's Rotate2D(-angle)
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
   return points.map(([x, y]) => {
@@ -136,7 +148,7 @@ export function rotatePoints(points, cx, cy, angleDeg) {
 
 /**
  * Rotate multiple feature arrays.
- * Equivalent to Python: rotateArrayList(arrays, image, angle)
+ * Equivalent to Python: rotateArrayList
  *
  * @param {Array<Array<[number, number]>>} featureArrays
  * @param {number} cx
@@ -152,13 +164,15 @@ export function rotatePointsList(featureArrays, cx, cy, angleDeg) {
  * Apply a translation offset to all feature arrays after rotation.
  * Equivalent to Python: adjustRotatedFeatures(feature_list, ymin, xmin)
  *
+ * Python: new_x = x - xmin, new_y = y - ymin
+ * Calling translateFeatures(arrays, -offsetX, -offsetY) gives x - (-offsetX) = x + offsetX.
+ *
  * @param {Array<Array<[number, number]>>} featureArrays
- * @param {number} dx   — horizontal offset (subtract to shift into view)
- * @param {number} dy   — vertical offset
+ * @param {number} dx   — subtract this from each x (pass -offsetX to add offsetX)
+ * @param {number} dy   — subtract this from each y
  * @returns {Array<Array<[number, number]>>}
  */
 export function translateFeatures(featureArrays, dx, dy) {
-  // TODO (Phase 3): Implement
   return featureArrays.map(pts =>
     pts.map(([x, y]) => [x - dx, y - dy])
   );
@@ -169,43 +183,168 @@ export function translateFeatures(featureArrays, dx, dy) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Filter a list of feature polygon arrays to keep only those belonging to
- * the current hole (remove features from adjacent holes).
+ * Filter features to keep only those belonging to the current hole.
  * Equivalent to Python: filterArrayList(...)
  *
- * Multi-stage filter:
- *   1. Bounding box check (±filterYards, ±30 yds laterally)
- *   2. Centerline perpendicular distance check
- *   3. Aggressive near-tee filter (within 75 yds: shortFactor × filterYards)
- *   4. Par 3 special case: skip near-tee aggressive filter
- *
- * @param {Array<[number, number]>} holeCenterline  — rotated hole pixels
- * @param {Array<Array<[number, number]>>} features — rotated feature arrays
- * @param {number} yardsPerPixel   — ypp: yards per pixel in this image
- * @param {number} par             — hole par (affects filter aggressiveness)
- * @param {object} opts
- * @param {number} opts.filterYards   — base filter width (default 50)
- * @param {number} opts.shortFactor   — multiplier near tee (default 1.5)
- * @param {number} opts.medFactor     — multiplier mid-range
- * @param {boolean} opts.isFairway    — use fairway-specific validation
- * @param {boolean} opts.isTeeBox     — tee box flag
- * @returns {Array<Array<[number, number]>>}  filtered features
+ * @param {Array<[number, number]>} holeCenterline  — rotated + translated hole pixels
+ * @param {Array<Array<[number, number]>>} features
+ * @param {number} yardsPerPixel
+ * @param {number} par
+ * @param {object} [opts]
+ * @param {number|null} [opts.filterYards=50]  — null = no filtering, return all
+ * @param {number} [opts.shortFactor=1]
+ * @param {number} [opts.medFactor=1]
+ * @param {boolean} [opts.isFairway=false]
+ * @param {boolean} [opts.isTeeBox=false]
+ * @param {boolean} [opts.drawAllFeatures=false]  — skip all filtering, return everything
+ * @returns {Array<Array<[number, number]>>}
  */
 export function filterFeatures(holeCenterline, features, yardsPerPixel, par, opts = {}) {
-  // TODO (Phase 3): Implement
-  // See Python filterArrayList() for full algorithm
-  throw new Error('filterFeatures not yet implemented (Phase 3)');
+  const {
+    filterYards = 50,
+    shortFactor = 1,
+    medFactor   = 1,
+    isFairway   = false,
+    isTeeBox    = false,
+    drawAllFeatures = false,
+  } = opts;
+
+  // null = skip filtering entirely (used for water hazards, woods)
+  if (filterYards === null || filterYards === undefined) return features;
+
+  const { bbXMin, bbYMin, bbXMax, bbYMax } = _createHoleBoundingBox(holeCenterline, yardsPerPixel);
+
+  const green    = holeCenterline[holeCenterline.length - 1];
+  const tee      = holeCenterline[0];
+  const midpoint = holeCenterline.length > 2 ? holeCenterline[1] : _midpoint(tee, green);
+
+  const par4plus = par === 3 ? 0 : 1;
+  // Tee-box filter: push the lower y-bound up to exclude tee boxes near the green
+  const teeBoxFilter = isTeeBox ? (90 / yardsPerPixel + par4plus * (140 / yardsPerPixel)) : 0;
+
+  const small = filterYards * shortFactor;
+  const med   = filterYards * medFactor;
+
+  return features.filter(array => {
+    if (!array || array.length === 0) return false;
+
+    // Centroid of this feature
+    const cx = array.reduce((s, p) => s + p[0], 0) / array.length;
+    const cy = array.reduce((s, p) => s + p[1], 0) / array.length;
+
+    // drawAllFeatures: include everything within the hole bbox, skipping the
+    // distance-to-centerline check. Fairways use full polygon bbox overlap so that
+    // large shared fairways (e.g. North Berwick #1/#18) are included even when their
+    // centroid falls outside the current hole's X or Y range after rotation.
+    if (drawAllFeatures) {
+      if (isFairway) {
+        const maxX = array.reduce((m, p) => Math.max(m, p[0]), -Infinity);
+        const minX = array.reduce((m, p) => Math.min(m, p[0]),  Infinity);
+        const maxY = array.reduce((m, p) => Math.max(m, p[1]), -Infinity);
+        const minY = array.reduce((m, p) => Math.min(m, p[1]),  Infinity);
+        return !(maxX < bbXMin || minX > bbXMax || maxY < bbYMin || minY > bbYMax);
+      }
+      return cx >= bbXMin && cx <= bbXMax && cy <= bbYMax && cy >= (bbYMin + teeBoxFilter);
+    }
+
+    // X bounding box check (normal path)
+    if (cx < bbXMin || cx > bbXMax) return false;
+
+    // Fairway: drop any fairway whose centroid is past the green (above it in rotated space).
+    // This avoids picking up the fairway of an adjacent hole whose tee is near our green.
+    if (isFairway && cy < green[1]) return false;
+
+    // Y bounding box check: for fairways, skip the centroid check — large or shared
+    // fairways (e.g. Pacific Dunes #1/#7) often have centroids outside any single
+    // hole's bbox. The y-range overlap check below serves as the fairway gate instead.
+    if (!isFairway && (cy > bbYMax || cy < (bbYMin + teeBoxFilter))) return false;
+
+    // Fairway y-range overlap check: only filter if the fairway has no y overlap at
+    // all with the hole extent (i.e., it lies entirely above the green or below the tee).
+    if (isFairway) {
+      const maxY = array.reduce((m, p) => Math.max(m, p[1]), -Infinity);
+      const minY = array.reduce((m, p) => Math.min(m, p[1]),  Infinity);
+      if (maxY < bbYMin || minY > bbYMax) return false;
+    }
+
+    // Centerline distance check.
+    // For fairways, use the minimum distance from any vertex to the centerline — this
+    // handles large/shared fairways whose centroid may be far from the current hole's
+    // centerline even though part of the fairway clearly belongs to it.
+    // For other features, centroid distance is sufficient.
+    let distYards;
+    if (isFairway) {
+      distYards = array.reduce((best, p) => {
+        const d = p[1] < midpoint[1]
+          ? distToLine(p, midpoint, green, yardsPerPixel)
+          : distToLine(p, midpoint, tee,   yardsPerPixel);
+        return Math.min(best, d);
+      }, Infinity);
+    } else if (cy < midpoint[1]) {
+      distYards = distToLine([cx, cy], midpoint, green, yardsPerPixel);
+    } else {
+      distYards = distToLine([cx, cy], midpoint, tee, yardsPerPixel);
+    }
+
+    // Apply tighter filter near the tee (par 3s skip this).
+    // Use centroid y for the nearTee/shortRng decision for all features.
+    const nearTee  = par !== 3 && (bbYMax - cy) * yardsPerPixel < 75;
+    const shortRng = par !== 3 && (bbYMax - cy) * yardsPerPixel < 150;
+
+    if (nearTee)   return distYards < small;
+    if (shortRng)  return distYards < med;
+    return distYards < filterYards;
+  });
 }
 
 /**
- * Calculate the perpendicular distance (in yards) from a point to a line.
+ * Create a bounding box around the rotated hole centerline for feature filtering.
+ * Equivalent to Python: createHoleBoundingBox(rotated_hole_array, ypp)
+ *
+ * @param {Array<[number, number]>} holePoints
+ * @param {number} ypp
+ * @returns {{ bbXMin, bbYMin, bbXMax, bbYMax }}
+ */
+function _createHoleBoundingBox(holePoints, ypp) {
+  let minX =  Infinity, minY =  Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of holePoints) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+
+  let bbXMin = minX - 50 / ypp;
+  let bbXMax = maxX + 50 / ypp;
+  const bbYMin = minY - 30 / ypp;   // 30 yards past green
+  const bbYMax = maxY + 10 / ypp;   // 10 yards behind tee
+
+  // Trim if wider than 125 yards, but keep at least 15 yards from centerline
+  const xSpread = (bbXMax - bbXMin) * ypp;
+  if (xSpread > 125) {
+    const trim = (xSpread - 125) / 2 / ypp;
+    bbXMin = Math.min(bbXMin + trim, minX - 15 / ypp);
+    bbXMax = Math.max(bbXMax - trim, maxX + 15 / ypp);
+  }
+
+  return { bbXMin, bbYMin, bbXMax, bbYMax };
+}
+
+/** Average of two points */
+function _midpoint([x1, y1], [x2, y2]) {
+  return [(x1 + x2) / 2, (y1 + y2) / 2];
+}
+
+/**
+ * Perpendicular distance (yards) from a point to a line segment.
  * Equivalent to Python: distToLine(point, line1, line2, ypp)
  *
- * @param {[number, number]} point    — [x, y]
- * @param {[number, number]} lineP1   — [x, y] first endpoint
- * @param {[number, number]} lineP2   — [x, y] second endpoint
+ * @param {[number, number]} point
+ * @param {[number, number]} lineP1
+ * @param {[number, number]} lineP2
  * @param {number} yardsPerPixel
- * @returns {number}  distance in yards
+ * @returns {number}
  */
 export function distToLine(point, lineP1, lineP2, yardsPerPixel) {
   const [x0, y0] = point;
@@ -217,18 +356,12 @@ export function distToLine(point, lineP1, lineP2, yardsPerPixel) {
   const len = Math.sqrt(dx * dx + dy * dy);
 
   if (len === 0) {
-    // Degenerate line: return distance to the point
     return Math.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2) * yardsPerPixel;
   }
 
-  // Point-to-line distance formula: |a·x0 + b·y0 + c| / sqrt(a²+b²)
-  // Line: a(x-x1) + b(y-y1) = 0  where a=dy, b=-dx, c = -(a·x1 + b·y1)
-  const a = dy;
-  const b = -dx;
+  const a = dy, b = -dx;
   const c = -(a * x1 + b * y1);
-  const dist = Math.abs(a * x0 + b * y0 + c) / len;
-
-  return dist * yardsPerPixel;
+  return (Math.abs(a * x0 + b * y0 + c) / len) * yardsPerPixel;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,77 +369,84 @@ export function distToLine(point, lineP1, lineP2, yardsPerPixel) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Calculate yards per degree of latitude at a given bounding box.
+ * Yards per degree of latitude.
  * Equivalent to Python: getLatDegreeDistance(bottom_lat, top_lat)
  *
- * Accounts for latitude-dependent degree length (longer at equator).
- * Equator: ~1 degree lat ≈ 120,925 yards
- * Increases ~13.56 yards/degree north.
- *
  * @param {number} latmin
  * @param {number} latmax
- * @returns {number}  yards per degree of latitude
+ * @returns {number}
  */
 export function getLatYardsPerDegree(latmin, latmax) {
-  // TODO (Phase 3): Port from Python getLatDegreeDistance
-  // Python formula (simplified spherical model):
-  //   avg_lat = (latmin + latmax) / 2
-  //   meters_per_degree = (Math.PI / 180) * EARTH_RADIUS_KM * 1000
-  //   yards = meters_per_degree * KM_TO_YARDS / 1000
-  throw new Error('getLatYardsPerDegree not yet implemented (Phase 3)');
+  const LAT_EQUATOR_YDS   = 120925.62;
+  const LAT_YDS_PER_DEGREE = 13.56;
+  const avgLat = (latmin + latmax) / 2;
+  return LAT_EQUATOR_YDS + Math.abs(avgLat) * LAT_YDS_PER_DEGREE;
 }
 
 /**
- * Calculate yards per degree of longitude at a given bounding box.
+ * Yards per degree of longitude at the given latitude.
  * Equivalent to Python: getLonDegreeDistance(bottom_lat, top_lat)
- *
- * Longitude degree length shrinks toward poles: multiply by cos(avg_lat).
  *
  * @param {number} latmin
  * @param {number} latmax
- * @returns {number}  yards per degree of longitude
+ * @returns {number}
  */
 export function getLonYardsPerDegree(latmin, latmax) {
-  // TODO (Phase 3): Port from Python getLonDegreeDistance
-  throw new Error('getLonYardsPerDegree not yet implemented (Phase 3)');
+  const LON_EQUATOR_YDS = 69.172 * 5280 / 3;   // ~121,822 yards
+  const avgLat = (latmin + latmax) / 2;
+  return LON_EQUATOR_YDS * Math.cos((avgLat * Math.PI) / 180);
 }
 
 /**
- * Calculate yards per pixel for a given image size and bounding box.
- * Used throughout rendering for distance annotations.
+ * Yards per pixel for an image covering a bounding box.
+ * Equivalent to Python: ypp = max(lat_dist, lon_dist) / 3000
  *
  * @param {{ latmin, lonmin, latmax, lonmax }} bbox
- * @param {number} imageWidth    — pixels
- * @param {number} imageHeight   — pixels
- * @returns {number}  yards per pixel
+ * @param {number} imageWidth
+ * @param {number} imageHeight
+ * @returns {number}
  */
 export function getYardsPerPixel(bbox, imageWidth, imageHeight) {
-  // TODO (Phase 3): Implement
-  // lonRange in yards / imageHeight  (rows are lon-based)
-  throw new Error('getYardsPerPixel not yet implemented (Phase 3)');
+  const latDist = (bbox.latmax - bbox.latmin) * getLatYardsPerDegree(bbox.latmin, bbox.latmax);
+  const lonDist = (bbox.lonmax - bbox.lonmin) * getLonYardsPerDegree(bbox.latmin, bbox.latmax);
+  return Math.max(latDist, lonDist) / Math.max(imageWidth, imageHeight);
 }
 
 /**
- * Calculate pixel distance between two [x,y] points.
+ * Canvas dimensions for a bounding box, with the longest side = maxPx.
+ * Equivalent to Python: generateImage sizing logic.
  *
- * @param {[number, number]} a
- * @param {[number, number]} b
- * @returns {number}
+ * Returns { width, height } where:
+ *   width  = lat-based dimension (columns)
+ *   height = lon-based dimension (rows)
+ *
+ * Resolution / memory trade-offs (worst case = square bbox at 45° rotation):
+ *   3 000px → rotated canvas ~4 200×4 200 (~72 MB)   — original, too coarse
+ *   6 000px → rotated canvas ~8 500×8 500 (~290 MB)  — good; comfortably exceeds 300 DPI for PDF
+ *  10 000px → rotated canvas ~14 100×14 100 (~800 MB) — risky on low-RAM devices; overkill for print
+ *
+ * @param {{ latmin, lonmin, latmax, lonmax }} bbox
+ * @param {number} [maxPx=6000]
+ * @returns {{ width: number, height: number }}
+ */
+export function getCanvasDimensions(bbox, maxPx = 6000) {
+  const latDist = (bbox.latmax - bbox.latmin) * getLatYardsPerDegree(bbox.latmin, bbox.latmax);
+  const lonDist = (bbox.lonmax - bbox.lonmin) * getLonYardsPerDegree(bbox.latmin, bbox.latmax);
+
+  let width, height;
+  if (latDist >= lonDist) {
+    width  = maxPx;
+    height = Math.round((lonDist / latDist) * maxPx);
+  } else {
+    height = maxPx;
+    width  = Math.round((latDist / lonDist) * maxPx);
+  }
+  return { width, height };
+}
+
+/**
+ * Pixel distance between two [x,y] points.
  */
 export function pixelDist(a, b) {
   return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2);
-}
-
-/**
- * Calculate the optimal canvas dimensions for a hole, scaled so the
- * longest side = maxPx (default 3000px). Returns { width, height }.
- *
- * @param {{ latmin, lonmin, latmax, lonmax }} bbox
- * @param {number} maxPx   — default 3000
- * @returns {{ width: number, height: number }}
- */
-export function getCanvasDimensions(bbox, maxPx = 3000) {
-  // TODO (Phase 3): Match Python's sizing logic
-  // Python uses x_dim (lon range) and y_dim (lat range), scaled to 3000px
-  throw new Error('getCanvasDimensions not yet implemented (Phase 3)');
 }
