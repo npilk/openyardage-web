@@ -94,6 +94,15 @@ body {
   color: #fff;
 }
 
+.logo-beta {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: rgba(255,255,255,0.6);
+  vertical-align: sub;
+  margin-left: 3px;
+}
+
 .header-about-link {
   font-size: 13px;
   color: rgba(255,255,255,0.75);
