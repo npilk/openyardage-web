@@ -57,7 +57,7 @@ const LETTER_H = 279.4;  // 11"
  * Assemble all rendered holes into a single-hole-per-page PDF (booklet size).
  *
  * @param {object} opts
- * @param {Array<{ holeNum, par, holeCanvas, greenCanvas }>} opts.holes
+ * @param {Array<{ holeNum, par, holeImageUrl, greenImageUrl, holeWidth, holeHeight, greenWidth, greenHeight }>} opts.holes
  * @param {string} opts.courseName
  * @param {object} opts.colors
  * @returns {Promise<string>} PDF data URI
@@ -183,9 +183,9 @@ async function drawHolePage(pdf, hole, colors, ox, oy) {
   // aspect ratio, so the entire right panel is one PNG with no separate fill.
   // This avoids PDF color-management mismatches between vector fills and raster.
   const holeDataUrl  = await canvasToDataUrl(
-    makeBackgroundComposite(hole.holeCanvas, colors.rough, RIGHT_W, BOOKLET_H)
+    await makeBackgroundComposite(hole.holeImageUrl, hole.holeWidth, hole.holeHeight, colors.rough, RIGHT_W, BOOKLET_H)
   );
-  const greenDataUrl = await canvasToDataUrl(hole.greenCanvas);
+  const greenDataUrl = hole.greenImageUrl;
 
   // ── Right panel: single image covering the full panel ──
   pdf.addImage(holeDataUrl, 'PNG', ox + RIGHT_X, oy, RIGHT_W, BOOKLET_H);
@@ -241,7 +241,7 @@ async function drawHolePage(pdf, hole, colors, ox, oy) {
 
   // Fit image and align to bottom of the area
   const gi = fitImage(
-    hole.greenCanvas.width, hole.greenCanvas.height,
+    hole.greenWidth, hole.greenHeight,
     ox + BM, oy + GREEN_TOP,
     GREEN_W, GREEN_H,
   );
@@ -287,21 +287,23 @@ function drawDashedLine(pdf, x1, y1, x2, y2, dashLen, gapLen) {
 
 /**
  * Create a new canvas sized to panelW:panelH aspect ratio, filled with
- * roughColor, then draw srcCanvas centered inside it. This bakes the
+ * roughColor, then draw the hole image centered inside it. This bakes the
  * letterbox padding into the image so the PDF needs no separate fill layer,
  * eliminating vector-vs-raster color management mismatches.
+ *
+ * Accepts a data URL string (the format stored in renderedHoles).
  */
-function makeBackgroundComposite(srcCanvas, roughColor, panelW, panelH) {
+async function makeBackgroundComposite(holeImageUrl, holeW, holeH, roughColor, panelW, panelH) {
   const panelAspect = panelW / panelH;
-  const imgAspect   = srcCanvas.width / srcCanvas.height;
+  const imgAspect   = holeW / holeH;
 
   let compositeW, compositeH;
   if (imgAspect > panelAspect) {
-    compositeW = srcCanvas.width;
-    compositeH = Math.round(srcCanvas.width / panelAspect);
+    compositeW = holeW;
+    compositeH = Math.round(holeW / panelAspect);
   } else {
-    compositeH = srcCanvas.height;
-    compositeW = Math.round(srcCanvas.height * panelAspect);
+    compositeH = holeH;
+    compositeW = Math.round(holeH * panelAspect);
   }
 
   const canvas = document.createElement('canvas');
@@ -312,11 +314,21 @@ function makeBackgroundComposite(srcCanvas, roughColor, panelW, panelH) {
   ctx.fillStyle = roughColor;
   ctx.fillRect(0, 0, compositeW, compositeH);
 
-  const x = Math.round((compositeW - srcCanvas.width)  / 2);
-  const y = Math.round((compositeH - srcCanvas.height) / 2);
-  ctx.drawImage(srcCanvas, x, y);
+  const img = await loadImage(holeImageUrl);
+  const x = Math.round((compositeW - holeW) / 2);
+  const y = Math.round((compositeH - holeH) / 2);
+  ctx.drawImage(img, x, y);
 
   return canvas;
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 /**

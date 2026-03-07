@@ -15,7 +15,7 @@
  */
 
 import { fetchCourseData, categorizeFeatures } from './osm.js';
-import { renderHole, renderGreenInset } from './renderer.js';
+import { renderHole, renderGreenInset, canvasToDataUrl } from './renderer.js';
 import { fetchElevationGrid } from './elevation.js';
 
 /**
@@ -132,7 +132,18 @@ export async function generateBook({
           par,
         });
 
-        renderedHoles.push({ holeNum, par, holeCanvas, greenCanvas, holeWay });
+        // Convert to data URLs and release canvas backing stores immediately
+        // to avoid accumulating large GPU textures across all 18 holes.
+        const holeWidth  = holeCanvas.width;
+        const holeHeight = holeCanvas.height;
+        const greenWidth  = greenCanvas.width;
+        const greenHeight = greenCanvas.height;
+        const holeImageUrl  = await canvasToDataUrl(holeCanvas);
+        holeCanvas.width = 1; holeCanvas.height = 1;
+        const greenImageUrl = await canvasToDataUrl(greenCanvas);
+        greenCanvas.width = 1; greenCanvas.height = 1;
+
+        renderedHoles.push({ holeNum, par, holeImageUrl, greenImageUrl, holeWidth, holeHeight, greenWidth, greenHeight, holeWay });
 
         const pct = 14 + (i + 1) * pctPerHole;
         onProgress({ pct, message: `Rendered hole ${holeNum} of ${totalHoles}…` });
@@ -173,7 +184,7 @@ export async function generateBook({
  * @param {{ latmin, lonmin, latmax, lonmax }} opts.bbox
  * @param {object} opts.colors
  * @param {object} opts.options        — may include overridden holeWidth / shortFilter
- * @returns {Promise<{ holeNum, par, holeCanvas, greenCanvas, holeWay }>}
+ * @returns {Promise<{ holeNum, par, holeImageUrl, greenImageUrl, holeWidth, holeHeight, greenWidth, greenHeight, holeWay }>}
  */
 export async function reRenderHole({ holeWay, allFeatures, elevationGrid, bbox, colors, options }) {
   const holeNum = parseInt(holeWay.tags?.ref, 10) || 0;
@@ -189,5 +200,14 @@ export async function reRenderHole({ holeWay, allFeatures, elevationGrid, bbox, 
     holeWay, features, bbox, colors, options, holeNum, par,
   });
 
-  return { holeNum, par, holeCanvas, greenCanvas, holeWay };
+  const holeWidth  = holeCanvas.width;
+  const holeHeight = holeCanvas.height;
+  const greenWidth  = greenCanvas.width;
+  const greenHeight = greenCanvas.height;
+  const holeImageUrl  = await canvasToDataUrl(holeCanvas);
+  holeCanvas.width = 1; holeCanvas.height = 1;
+  const greenImageUrl = await canvasToDataUrl(greenCanvas);
+  greenCanvas.width = 1; greenCanvas.height = 1;
+
+  return { holeNum, par, holeImageUrl, greenImageUrl, holeWidth, holeHeight, greenWidth, greenHeight, holeWay };
 }

@@ -55,7 +55,7 @@ export const AppState = {
     statusMessage: '',
     pdfUrl:        null,
     error:         null,
-    renderedHoles: [],     // { holeNum, par, holeCanvas, greenCanvas, holeWay }[]
+    renderedHoles: [],     // { holeNum, par, holeImageUrl, greenImageUrl, holeWidth, holeHeight, greenWidth, greenHeight, holeWay }[]
     osmData:       null,   // { allFeatures, elevationGrid, bbox }
   },
 };
@@ -472,8 +472,8 @@ function displayHole(index) {
   dom.holeSelect.value = String(index);
 
   // Draw hole canvas
-  drawToDisplayCanvas(holes[index].holeCanvas,  dom.holeDisplayCanvas);
-  drawToDisplayCanvas(holes[index].greenCanvas, dom.greenDisplayCanvas);
+  drawToDisplayCanvas(holes[index].holeImageUrl,  dom.holeDisplayCanvas);
+  drawToDisplayCanvas(holes[index].greenImageUrl, dom.greenDisplayCanvas);
 
   // Show OSM hole name if present (e.g. "Pacific Dunes 1", "Amen Corner")
   const osmName = holes[index].holeWay?.tags?.name;
@@ -508,6 +508,16 @@ function deleteCurrentHole() {
 }
 
 function drawToDisplayCanvas(src, dest) {
+  if (typeof src === 'string') {
+    const img = new Image();
+    img.onload = () => {
+      dest.width  = img.naturalWidth;
+      dest.height = img.naturalHeight;
+      dest.getContext('2d').drawImage(img, 0, 0);
+    };
+    img.src = src;
+    return;
+  }
   dest.width  = src.width;
   dest.height = src.height;
   dest.getContext('2d').drawImage(src, 0, 0);
@@ -537,10 +547,13 @@ function closeAboutModal() {
 // Download helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function canvasToBlob(canvas) {
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png')
-  );
+function dataUrlToBlob(dataUrl) {
+  const [header, data] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const bytes = atob(data);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
 }
 
 function safeFilename(base) {
@@ -609,8 +622,8 @@ async function downloadZip() {
 
     for (const hole of AppState.generation.renderedHoles) {
       const num = String(hole.holeNum).padStart(2, '0');
-      folder.file(`hole-${num}.png`,       await canvasToBlob(hole.holeCanvas));
-      folder.file(`hole-${num}-green.png`, await canvasToBlob(hole.greenCanvas));
+      folder.file(`hole-${num}.png`,       dataUrlToBlob(hole.holeImageUrl));
+      folder.file(`hole-${num}-green.png`, dataUrlToBlob(hole.greenImageUrl));
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
@@ -658,11 +671,15 @@ async function regenCurrentHole() {
       options:       overrideOptions,
     });
 
-    // Update stored canvases for this hole
+    // Update stored images for this hole
     AppState.generation.renderedHoles[index] = {
       ...hole,
-      holeCanvas:  result.holeCanvas,
-      greenCanvas: result.greenCanvas,
+      holeImageUrl:  result.holeImageUrl,
+      greenImageUrl: result.greenImageUrl,
+      holeWidth:     result.holeWidth,
+      holeHeight:    result.holeHeight,
+      greenWidth:    result.greenWidth,
+      greenHeight:   result.greenHeight,
     };
 
     displayHole(index);

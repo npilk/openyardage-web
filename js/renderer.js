@@ -45,6 +45,11 @@ import {
   getYardsPerPixel, getCanvasDimensions,
 } from './coords.js';
 
+// iPadOS 13+ reports as "Macintosh" in UA, so also check maxTouchPoints.
+const IS_MOBILE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ||
+  (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
+const MAX_CANVAS_PX = IS_MOBILE ? 3000 : 6000;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +71,7 @@ import {
  */
 export async function renderHole({ holeWay, features, elevationGrid, bbox, colors, options, holeNum, par }) {
   // ── 1. Canvas dimensions ────────────────────────────────────────────────────
-  const { width, height } = getCanvasDimensions(bbox);
+  const { width, height } = getCanvasDimensions(bbox, MAX_CANVAS_PX);
   const ypp = getYardsPerPixel(bbox, width, height);
   const cx = width / 2, cy = height / 2;
 
@@ -241,6 +246,7 @@ export async function renderHole({ holeWay, features, elevationGrid, bbox, color
   const destX = Math.round((finalW - cropW) / 2);
   const destY = Math.round((finalH - cropH) / 2);
   outCtx.drawImage(rotCanvas, lbx, lby, cropW, cropH, destX, destY, cropW, cropH);
+  rotCanvas.width = 1; rotCanvas.height = 1;  // release backing store
 
   return outCanvas;
 }
@@ -257,7 +263,7 @@ export async function renderHole({ holeWay, features, elevationGrid, bbox, color
  */
 export async function renderGreenInset({ holeWay, features, bbox, colors, options, holeNum, par }) {
   // ── 1. Canvas dimensions (same as renderHole) ──────────────────────────────
-  const { width, height } = getCanvasDimensions(bbox);
+  const { width, height } = getCanvasDimensions(bbox, MAX_CANVAS_PX);
   const ypp = getYardsPerPixel(bbox, width, height);
   const cx = width / 2, cy = height / 2;
 
@@ -361,6 +367,7 @@ export async function renderGreenInset({ holeWay, features, bbox, colors, option
   outCtx.fillStyle = '#8C8C8C';    // (140,140,140) border color
   outCtx.fillRect(0, 0, finalW, finalH);
   outCtx.drawImage(rotCanvas, cropX, cropY, cropW, cropH, bw, bw, cropW, cropH);
+  rotCanvas.width = 1; rotCanvas.height = 1;  // release backing store
 
   return outCanvas;
 }
