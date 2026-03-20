@@ -46,7 +46,8 @@
 }
 
 html, body {
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -69,6 +70,9 @@ body {
   display: flex;
   align-items: center;
   padding: 0 20px;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
   gap: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.20);
   z-index: 100;
@@ -215,6 +219,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   gap: 16px;
 }
 
@@ -1385,6 +1390,7 @@ body {
     flex-direction: column;
     height: auto;
     padding: 10px 14px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
     gap: 8px;
   }
 
@@ -1530,6 +1536,226 @@ body {
   .export-option .btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ── Yardage Book Viewer ─────────────────────────────────────────── */
+
+.viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #1a2318;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* iOS safe areas for notch / home indicator */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.viewer-overlay[hidden] {
+  display: none;
+}
+
+.viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.viewer-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.viewer-close:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+.viewer-title {
+  font-weight: 600;
+  font-size: 15px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-page-indicator {
+  font-size: 13px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.viewer-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  touch-action: pan-y;
+}
+
+/* Each page mimics the PDF booklet layout */
+.viewer-page {
+  display: none;
+  width: 100%;
+  height: 100%;
+  max-width: 500px;
+  max-height: 650px;
+  background: #fff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  flex-direction: row;
+}
+
+.viewer-page.active {
+  display: flex;
+}
+
+/* Cover page */
+.viewer-page-cover {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+}
+
+.viewer-page-cover .viewer-cover-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a2318;
+  margin-bottom: 8px;
+}
+
+.viewer-page-cover .viewer-cover-sub {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.viewer-page-cover .viewer-cover-credit {
+  position: absolute;
+  bottom: 16px;
+  font-size: 10px;
+  color: var(--color-text-faint);
+  text-align: center;
+}
+
+/* Left panel (40%) */
+.viewer-left {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.viewer-hole-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a2318;
+}
+
+.viewer-par {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.viewer-notes-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 16px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 2px;
+}
+
+.viewer-green-wrap {
+  margin-top: auto;
+}
+
+.viewer-green-wrap img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+/* Right panel (60%) — hole image */
+.viewer-right {
+  width: 60%;
+  position: relative;
+  overflow: hidden;
+}
+
+.viewer-right img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Nav arrows */
+.viewer-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2001;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+  padding: 12px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.viewer-nav:hover {
+  background: rgba(0,0,0,0.7);
+}
+
+.viewer-nav:disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.viewer-nav-prev { left: 8px; }
+.viewer-nav-next { right: 8px; }
+
+/* Mobile: make pages fill more of the screen */
+@media (max-width: 600px) {
+  .viewer-page {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  .viewer-nav {
+    padding: 16px 8px;
+    font-size: 28px;
+    background: rgba(0,0,0,0.3);
+  }
+
+  .viewer-left {
+    padding: 10px 8px;
   }
 }
 

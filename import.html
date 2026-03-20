@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenYardage — Import Images</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── page-specific overrides ── */
+    html, body { overflow: auto; }
+
+    .import-main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 20px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .import-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .import-card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--color-text);
+    }
+
+    /* ── drop zone ── */
+    .drop-zone {
+      border: 2px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      position: relative;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--color-primary);
+      background: var(--color-surface-alt);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .drop-zone-icon { font-size: 28px; line-height: 1; margin-bottom: 8px; }
+    .drop-zone-label { font-size: 14px; color: var(--color-text-muted); }
+    .drop-zone-hint  { font-size: 12px; color: var(--color-text-faint); margin-top: 4px; }
+
+    /* ── file list ── */
+    .file-list {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .file-chip {
+      background: var(--color-surface-alt);
+      border: 1px solid var(--color-border-light);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow: hidden;
+    }
+    .file-chip .chip-ok  { color: var(--color-primary); font-size: 11px; }
+    .file-chip .chip-err { color: var(--color-error);   font-size: 11px; }
+    .file-chip span:last-child {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── course info ── */
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .field-row label {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      width: 130px;
+      flex-shrink: 0;
+    }
+    .field-row input[type="text"],
+    .field-row input[type="color"] {
+      flex: 1;
+    }
+    input[type="text"].text-input {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 14px;
+      color: var(--color-text);
+      background: var(--color-surface);
+      width: 100%;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    input[type="text"].text-input:focus {
+      border-color: var(--color-primary);
+    }
+
+    /* ── par table ── */
+    .par-table-wrap { overflow-x: auto; }
+    .par-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+    .par-table th, .par-table td {
+      border: 1px solid var(--color-border-light);
+      padding: 5px 6px;
+      text-align: center;
+    }
+    .par-table th {
+      background: var(--color-surface-alt);
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+    .par-table input[type="number"] {
+      width: 40px;
+      border: none;
+      background: transparent;
+      text-align: center;
+      font-size: 13px;
+      color: var(--color-text);
+      outline: none;
+    }
+    .par-table input[type="number"]:focus {
+      background: var(--color-surface-alt);
+      border-radius: 3px;
+    }
+
+    /* ── rough color ── */
+    .color-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .color-swatch {
+      width: 36px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      cursor: pointer;
+      padding: 2px;
+    }
+    .color-hex-label {
+      font-size: 12px;
+      color: var(--color-text-faint);
+      font-family: var(--font-mono);
+    }
+
+    /* ── actions ── */
+    .import-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ── status ── */
+    .import-status {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      min-height: 20px;
+    }
+    .import-status.error { color: var(--color-error); }
+    .import-status.success { color: var(--color-primary); }
+
+    /* ── progress ── */
+    .progress-wrap { display: none; }
+    .progress-wrap.visible { display: block; }
+
+    /* reuse existing btn classes, just ensure they're available on this page */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: background var(--transition), opacity var(--transition);
+      text-decoration: none;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary  { background: var(--color-primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--color-surface-alt); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-logo">
+      <span class="logo-text">OpenYardage<sub class="logo-beta">beta</sub></span>
+    </div>
+    <span style="color:rgba(255,255,255,0.75);font-size:14px;">Import Images → PDF</span>
+    <a href="index.html" style="margin-left:auto;color:rgba(255,255,255,0.80);font-size:13px;text-decoration:none;">← Back to generator</a>
+  </header>
+
+  <main class="import-main">
+
+    <!-- ── Hole images ── -->
+    <div class="import-card">
+      <h2>1. Hole Images</h2>
+      <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;">
+        Select all hole images at once. Files must be named <code>hole_1.png</code> … <code>hole_18.png</code>
+        (or <code>.jpg</code> / <code>.jpeg</code>). You can upload any subset — holes without an image are skipped.
+      </p>
+      <div class="drop-zone" id="dz-holes">
+        <input type="file" id="input-holes" accept="image/png,image/jpeg" multiple />
+        <div class="drop-zone-icon">🖼</div>
+        <div class="drop-zone-label">Click or drag &amp; drop hole images here</div>
+        <div class="drop-zone-hint">hole_1.png … hole_18.png</div>
+      </div>
+      <div class="file-list" id="list-holes"></div>
+    </div>
+
+    <!-- ── Green inset images ── -->
+    <div class="import-card">
+      <h2>2. Green Inset Images</h2>
+      <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;">
+        Select all green inset images. Same naming convention: <code>hole_1.png</code> … <code>hole_18.png</code>.
+        Green images are optional — holes without a green image will have an empty green panel.
+      </p>
+      <div class="drop-zone" id="dz-greens">
+        <input type="file" id="input-greens" accept="image/png,image/jpeg" multiple />
+        <div class="drop-zone-icon">⛳</div>
+        <div class="drop-zone-label">Click or drag &amp; drop green inset images here</div>
+        <div class="drop-zone-hint">hole_1.png … hole_18.png</div>
+      </div>
+      <div class="file-list" id="list-greens"></div>
+    </div>
+
+    <!-- ── Course info ── -->
+    <div class="import-card">
+      <h2>3. Course Info</h2>
+
+      <div class="field-row">
+        <label for="course-name">Course name</label>
+        <input type="text" id="course-name" class="text-input" placeholder="My Golf Course" />
+      </div>
+
+      <div class="field-row" style="align-items:flex-start;margin-top:4px;">
+        <label style="padding-top:2px;">Background (rough) color</label>
+        <div class="color-input-wrap">
+          <input type="color" id="rough-color" class="color-swatch" value="#18BB3E" />
+          <span class="color-hex-label" id="rough-hex">#18BB3E</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Par values ── -->
+    <div class="import-card">
+      <h2>4. Par Values <span style="font-weight:400;font-size:13px;color:var(--color-text-faint)">(optional)</span></h2>
+      <div class="par-table-wrap">
+        <table class="par-table" id="par-table">
+          <thead>
+            <tr id="par-head-row"></tr>
+          </thead>
+          <tbody>
+            <tr id="par-body-row"></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Generate ── -->
+    <div class="import-card">
+      <h2>5. Generate PDF</h2>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="margin-bottom:8px;">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-labels" style="margin-bottom:14px;">
+          <span class="progress-status" id="progress-status">Working…</span>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="import-status" id="import-status"></div>
+
+      <div class="import-actions" style="margin-top:16px;">
+        <button class="btn btn-primary" id="btn-digital" disabled>⬇ Digital PDF</button>
+        <button class="btn btn-primary" id="btn-print"   disabled>⬇ Printable PDF (4-up)</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script type="module">
+    import { assemblePdf, assemblePrintPdf } from './js/pdf.js';
+
+    // ── State ──────────────────────────────────────────────────────────────
+    const holeFiles  = new Map(); // holeNum → File
+    const greenFiles = new Map(); // holeNum → File
+
+    // ── Par table (holes 1–18) ─────────────────────────────────────────────
+    const headRow = document.getElementById('par-head-row');
+    const bodyRow = document.getElementById('par-body-row');
+    for (let i = 1; i <= 18; i++) {
+      const th = document.createElement('th');
+      th.textContent = i;
+      headRow.appendChild(th);
+
+      const td = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.min = '3';
+      inp.max = '5';
+      inp.value = '4';
+      inp.id = `par-${i}`;
+      inp.setAttribute('aria-label', `Par for hole ${i}`);
+      td.appendChild(inp);
+      bodyRow.appendChild(td);
+    }
+
+    // ── Rough color ────────────────────────────────────────────────────────
+    const roughInput = document.getElementById('rough-color');
+    const roughHex   = document.getElementById('rough-hex');
+    roughInput.addEventListener('input', () => {
+      roughHex.textContent = roughInput.value.toUpperCase();
+    });
+
+    // ── File parsing ────────────────────────────────────────────────────────
+    function parseHoleNum(filename) {
+      // Matches hole_1.png, hole_12.jpg, etc.
+      const m = filename.match(/^hole_(\d{1,2})\.(png|jpe?g)$/i);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function renderFileList(container, fileMap) {
+      container.innerHTML = '';
+      if (fileMap.size === 0) return;
+
+      const sorted = [...fileMap.entries()].sort((a, b) => a[0] - b[0]);
+      for (const [num, file] of sorted) {
+        const chip = document.createElement('div');
+        chip.className = 'file-chip';
+        chip.innerHTML = `<span class="chip-ok">✓</span><span>Hole ${num}</span>`;
+        chip.title = file.name;
+        container.appendChild(chip);
+      }
+    }
+
+    function handleFiles(files, fileMap, container) {
+      for (const file of files) {
+        const n = parseHoleNum(file.name);
+        if (n !== null && n >= 1 && n <= 18) {
+          fileMap.set(n, file);
+        }
+      }
+      renderFileList(container, fileMap);
+      updateGenerateButtons();
+    }
+
+    // ── Drop zone wiring ───────────────────────────────────────────────────
+    function wireDropZone(dzId, inputId, fileMap, listId) {
+      const dz    = document.getElementById(dzId);
+      const input = document.getElementById(inputId);
+      const list  = document.getElementById(listId);
+
+      input.addEventListener('change', () => {
+        handleFiles(Array.from(input.files), fileMap, list);
+      });
+
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        handleFiles(Array.from(e.dataTransfer.files), fileMap, list);
+      });
+    }
+
+    wireDropZone('dz-holes',  'input-holes',  holeFiles,  'list-holes');
+    wireDropZone('dz-greens', 'input-greens', greenFiles, 'list-greens');
+
+    // ── Button state ───────────────────────────────────────────────────────
+    function updateGenerateButtons() {
+      const ok = holeFiles.size > 0;
+      document.getElementById('btn-digital').disabled = !ok;
+      document.getElementById('btn-print').disabled   = !ok;
+    }
+
+    // ── Image helpers ──────────────────────────────────────────────────────
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function imageDimensions(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload  = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    }
+
+    // ── Build holes array ──────────────────────────────────────────────────
+    async function buildHoles(onProgress) {
+      const entries = [...holeFiles.entries()].sort((a, b) => a[0] - b[0]);
+      const holes = [];
+      let done = 0;
+
+      for (const [num, file] of entries) {
+        const holeUrl  = await fileToDataUrl(file);
+        const holeDims = await imageDimensions(holeUrl);
+
+        let greenUrl   = null;
+        let greenDims  = { w: 1, h: 1 };
+
+        if (greenFiles.has(num)) {
+          greenUrl  = await fileToDataUrl(greenFiles.get(num));
+          greenDims = await imageDimensions(greenUrl);
+        }
+
+        const par = parseInt(document.getElementById(`par-${num}`)?.value ?? '4', 10);
+
+        holes.push({
+          holeNum:     num,
+          par:         isNaN(par) ? null : par,
+          holeImageUrl:  holeUrl,
+          holeWidth:     holeDims.w,
+          holeHeight:    holeDims.h,
+          greenImageUrl: greenUrl ?? makeBlankGreenDataUrl(),
+          greenWidth:    greenDims.w,
+          greenHeight:   greenDims.h,
+        });
+
+        done++;
+        onProgress(done / entries.length);
+      }
+
+      return holes;
+    }
+
+    // Tiny transparent PNG as a placeholder when no green image is supplied
+    function makeBlankGreenDataUrl() {
+      const c = document.createElement('canvas');
+      c.width = 1; c.height = 1;
+      return c.toDataURL('image/png');
+    }
+
+    // ── Progress UI ────────────────────────────────────────────────────────
+    function setProgress(fraction, label) {
+      const pct  = Math.round(fraction * 100);
+      document.getElementById('progress-fill').style.width = pct + '%';
+      document.getElementById('progress-pct').textContent  = pct + '%';
+      document.getElementById('progress-status').textContent = label;
+    }
+
+    function setStatus(msg, type = '') {
+      const el = document.getElementById('import-status');
+      el.textContent = msg;
+      el.className = 'import-status' + (type ? ' ' + type : '');
+    }
+
+    // ── Generate & download ────────────────────────────────────────────────
+    async function generate(mode) {
+      const btns = [document.getElementById('btn-digital'), document.getElementById('btn-print')];
+      btns.forEach(b => b.disabled = true);
+      setStatus('');
+
+      const pw = document.getElementById('progress-wrap');
+      pw.classList.add('visible');
+      setProgress(0, 'Loading images…');
+
+      try {
+        const holes = await buildHoles(f => setProgress(f * 0.7, `Loading images… ${Math.round(f * holeFiles.size)} / ${holeFiles.size}`));
+
+        setProgress(0.75, 'Assembling PDF…');
+
+        const courseName = document.getElementById('course-name').value.trim() || 'Golf Course';
+        const colors = { rough: roughInput.value };
+
+        const fn = mode === 'print' ? assemblePrintPdf : assemblePdf;
+        const dataUri = await fn({ holes, courseName, colors });
+
+        setProgress(1, 'Done!');
+
+        const a = document.createElement('a');
+        const slug = courseName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        a.download = `${slug}_${mode === 'print' ? 'printable' : 'digital'}.pdf`;
+        a.href = dataUri;
+        a.click();
+
+        setStatus('PDF downloaded successfully.', 'success');
+      } catch (err) {
+        console.error(err);
+        setStatus('Error: ' + err.message, 'error');
+      } finally {
+        pw.classList.remove('visible');
+        updateGenerateButtons();
+      }
+    }
+
+    document.getElementById('btn-digital').addEventListener('click', () => generate('digital'));
+    document.getElementById('btn-print').addEventListener('click',   () => generate('print'));
+  </script>
+
+</body>
+</html>

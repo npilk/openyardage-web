@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>OpenYardage — Printable Golf Yardage Books</title>
   <meta name="description" content="Generate printable golf yardage books in your browser using free OpenStreetMap data. No account required." />
 
@@ -395,6 +395,7 @@
           <button class="btn btn-text" id="btn-start-over">Start Over</button>
         </div>
         <div class="step3-download-group" id="download-actions" hidden>
+          <button class="btn btn-secondary" id="btn-view-book">View Book</button>
           <button class="btn btn-primary" id="btn-export">⬇ Export</button>
         </div>
       </footer>
@@ -457,6 +458,22 @@
 
       </div>
     </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       YARDAGE BOOK VIEWER
+  ═══════════════════════════════════════════════════ -->
+  <div class="viewer-overlay" id="viewer-overlay" hidden>
+    <div class="viewer-toolbar">
+      <button class="viewer-close" id="btn-viewer-close" aria-label="Close viewer">✕</button>
+      <span class="viewer-title" id="viewer-title"></span>
+      <span class="viewer-page-indicator" id="viewer-page-indicator"></span>
+    </div>
+    <div class="viewer-stage" id="viewer-stage">
+      <!-- Pages injected dynamically -->
+    </div>
+    <button class="viewer-nav viewer-nav-prev" id="btn-viewer-prev" aria-label="Previous hole">‹</button>
+    <button class="viewer-nav viewer-nav-next" id="btn-viewer-next" aria-label="Next hole">›</button>
   </div>
 
   <!-- ═══════════════════════════════════════════════════

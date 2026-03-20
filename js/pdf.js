@@ -80,7 +80,7 @@ export async function assemblePdf({ holes, courseName, colors }) {
     await drawHolePage(pdf, hole, colors, 0, 0);
   }
 
-  return pdf.output('datauristring');
+  return pdf.output('blob');
 }
 
 /**
@@ -139,7 +139,7 @@ export async function assemblePrintPdf({ holes, courseName, colors }) {
     drawCutGuides(pdf);
   }
 
-  return pdf.output('datauristring');
+  return pdf.output('blob');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
