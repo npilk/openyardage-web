@@ -154,7 +154,7 @@ const dom = {
   generationStatus: document.getElementById('generation-status'),
 
   // Step 3 download / export
-  downloadActions:     document.getElementById('download-actions'),
+  step3Footer:         document.getElementById('step3-footer'),
   btnExport:           document.getElementById('btn-export'),
   exportModal:         document.getElementById('export-modal'),
   btnExportClose:      document.getElementById('btn-export-close'),
@@ -383,7 +383,7 @@ function startGeneration() {
 
   // Reset step 3 UI
   dom.holeBrowser.setAttribute('hidden', '');
-  dom.downloadActions.setAttribute('hidden', '');
+  dom.step3Footer.setAttribute('hidden', '');
   dom.generationStatus.removeAttribute('hidden');
   dom.errorState.setAttribute('hidden', '');
   dom.genCourseName.textContent = AppState.courseName || 'Yardage Book';
@@ -426,7 +426,7 @@ export function handleGenerationDone({ holeCount, renderedHoles, osmData }) {
   dom.generationStatus.setAttribute('hidden', '');
 
   showHoleBrowser();
-  dom.downloadActions.removeAttribute('hidden');
+  dom.step3Footer.removeAttribute('hidden');
 }
 
 /** Called by generator.js on unrecoverable error */

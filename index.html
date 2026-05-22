@@ -285,6 +285,12 @@
     <section id="step-3" class="step-panel" aria-labelledby="gen-course-name" hidden>
       <div class="step-3-layout">
 
+        <!-- Top nav: secondary actions -->
+        <div class="step3-top-bar">
+          <button class="btn btn-secondary" id="btn-back-to-step2">← Customize</button>
+          <button class="btn btn-text" id="btn-start-over">Change Course</button>
+        </div>
+
         <!-- Progress area -->
         <div class="generation-status" id="generation-status">
           <h2 class="step-heading" id="gen-course-name"></h2>
@@ -387,14 +393,8 @@
 
       </div>
 
-      <footer class="step-footer" id="step3-footer">
-        <div class="step3-nav-group">
-          <button class="btn btn-secondary" id="btn-back-to-step2">
-            <span class="btn-arrow">←</span> Back to Customize
-          </button>
-          <button class="btn btn-text" id="btn-start-over">Start Over</button>
-        </div>
-        <div class="step3-download-group" id="download-actions" hidden>
+      <footer class="step-footer step3-footer" id="step3-footer" hidden>
+        <div class="step3-download-group" id="download-actions">
           <button class="btn btn-secondary" id="btn-view-book">View Book</button>
           <button class="btn btn-primary" id="btn-export">⬇ Export</button>
         </div>

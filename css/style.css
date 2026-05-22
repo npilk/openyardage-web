@@ -1232,22 +1232,30 @@ body {
 }
 
 
-/* ── Step 3 footer download group ───────────────────────────────── */
-.step3-nav-group {
+/* ── Step 3 top bar ──────────────────────────────────────────────── */
+.step3-top-bar {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 12px;
+}
+
+/* ── Step 3 footer ───────────────────────────────────────────────── */
+.step3-footer {
+  justify-content: flex-end;
+}
+
+.step3-footer[hidden] {
+  display: none;
 }
 
 .step3-download-group {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
-}
-
-.step3-download-group[hidden] {
-  display: none;
 }
 
 /* ── Error State ─────────────────────────────────────────────────── */
@@ -1386,7 +1394,7 @@ body {
 
 /* ≤480px — step 1 & 2 footer: stack on very narrow screens */
 @media (max-width: 480px) {
-  .step-footer {
+  .step-footer:not(.step3-footer) {
     flex-direction: column;
     height: auto;
     padding: 10px 14px;
